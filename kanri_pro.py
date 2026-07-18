@@ -78,7 +78,6 @@ def auto_close_selector(label, options, key, horizontal=True):
     if open_key not in st.session_state:
         st.session_state[open_key] = False
 
-    # 絵文字をなくし、洗練されたテキストのみに
     btn_label = f"{label} ｜ {st.session_state[val_key]}"
     if st.button(btn_label, key=f"btn_{key}", use_container_width=True):
         st.session_state[open_key] = not st.session_state[open_key]
@@ -96,7 +95,7 @@ def auto_close_selector(label, options, key, horizontal=True):
     return st.session_state[val_key]
 
 # ==========================================
-# 3. 超・プロ仕様 SaaSデザイン CSS (絵文字排除版)
+# 3. 超・プロ仕様 SaaSデザイン CSS
 # ==========================================
 st.set_page_config(page_title="在庫・貸出管理", layout="centered", initial_sidebar_state="expanded")
 
@@ -110,7 +109,6 @@ html, body, [class*="css"] {
 }
 .block-container { padding-top: 2rem !important; }
 
-/* アプリ風カプセル型ナビゲーションメニュー */
 div[data-testid="stRadio"] > div[role="radiogroup"] { 
     display: inline-flex; 
     flex-wrap: wrap; 
@@ -136,7 +134,6 @@ div[data-testid="stRadio"] label[data-checked="true"] {
 }
 div[data-testid="stRadio"] label p { font-size: 14px !important; }
 
-/* プライマリーボタン（送信・記録） */
 button[data-testid="baseButton-primary"] {
     background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
     color: #ffffff !important;
@@ -154,7 +151,6 @@ button[data-testid="baseButton-primary"]:hover {
     background: linear-gradient(180deg, #334155 0%, #1e293b 100%) !important;
 }
 
-/* セカンダリーボタン（アコーディオン） */
 button[data-testid="baseButton-secondary"] { 
     background-color: #ffffff !important; 
     border: 1px solid #cbd5e1 !important; 
@@ -179,7 +175,6 @@ button[data-testid="baseButton-secondary"] p {
     width: 100% !important;
 }
 
-/* カードデザイン */
 .card-box { 
     background: #ffffff; 
     border-radius: 16px; 
@@ -189,7 +184,6 @@ button[data-testid="baseButton-secondary"] p {
     margin-bottom: 20px; 
 }
 
-/* テーブル（表） */
 table { 
     width: 100%; 
     border-collapse: separate; 
@@ -221,7 +215,6 @@ tr:hover td { background-color: #f8fafc; }
 
 h3, h4, h5 { color: #0f172a; font-weight: 700; letter-spacing: -0.025em; }
 
-/* A4印刷用 (絵文字を消したことでさらに詰めやすくなりました) */
 @media print { 
     @page { size: A4 portrait; margin: 6mm; } 
     .no-print, section[data-testid="stSidebar"], header[data-testid="stHeader"], div[data-testid="stRadio"], div[data-testid="stCheckbox"], button { display: none !important; } 
@@ -430,21 +423,44 @@ elif st.session_state.page == "履歴":
             if not df_hist.empty:
                 df_cat = get_inventory(cat)
                 if not df_cat.empty:
-                    df = df_hist[df_hist['item_name'].isin(df_cat['name'].tolist())]
-                    
-                    st.markdown("<div style='margin-bottom: 15px;'>", unsafe_allow_html=True)
-                    staff_s = auto_close_selector(f"氏名で絞り込み", ["すべて", "会社購入"] + STAFF_LIST, f"hist_staff_{cat}")
-                    st.markdown("</div>", unsafe_allow_html=True)
-                        
-                    if staff_s != "すべて": 
-                        df = df[df['staff_name'] == staff_s]
+                    # 履歴データから該当カテゴリのものを抽出
+                    df = df_hist[df_hist['item_name'].isin(df_cat['name'].tolist())].copy()
                     
                     if not df.empty:
-                        display_hist = df[['date', 'staff_name', 'item_name', 'action', 'change_amount', 'comment']]
-                        display_hist.columns = ['日付', '氏名', '品名', '区分', '数量', '備考']
-                        st.table(display_hist.style.hide(axis="index"))
+                        # 登録されている年を自動抽出
+                        available_years = sorted(list(set([str(d).split("/")[0] for d in df['date'] if pd.notna(d)])), reverse=True)
+                        year_options = ["すべて"] + [f"{y}年" for y in available_years]
+                        
+                        st.markdown("<div class='card-box' style='padding: 15px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+                        st.markdown("<h5 style='margin-bottom: 15px; color: #475569; font-size: 14px;'>高度な絞り込み検索</h5>", unsafe_allow_html=True)
+                        
+                        col_s1, col_s2 = st.columns(2)
+                        with col_s1:
+                            year_s = auto_close_selector("年", year_options, f"hist_year_{cat}")
+                        with col_s2:
+                            staff_s = auto_close_selector("氏名", ["すべて", "会社購入"] + STAFF_LIST, f"hist_staff_{cat}")
+                        
+                        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+                        item_s = st.text_input("品名で検索 (一部入力でもOK)", key=f"hist_item_{cat}", placeholder="例: ズボン、ジャンパー")
+                        st.markdown("</div>", unsafe_allow_html=True)
+                        
+                        # 絞り込みロジックの適用
+                        if year_s != "すべて":
+                            target_year = year_s.replace("年", "")
+                            df = df[df['date'].str.startswith(target_year, na=False)]
+                        if staff_s != "すべて": 
+                            df = df[df['staff_name'] == staff_s]
+                        if item_s:
+                            df = df[df['item_name'].str.contains(item_s, na=False)]
+                        
+                        if not df.empty:
+                            display_hist = df[['date', 'staff_name', 'item_name', 'action', 'change_amount', 'comment']]
+                            display_hist.columns = ['日付', '氏名', '品名', '区分', '数量', '備考']
+                            st.table(display_hist.style.hide(axis="index"))
+                        else:
+                            st.info("条件に一致する履歴がありません。")
                     else:
-                        st.info("該当する履歴がありません。")
+                        st.info(f"{cat}の履歴がありません。")
             else:
                 st.info("履歴がありません。")
 
