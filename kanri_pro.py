@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import time
-import streamlit.components.v1 as components
 from supabase import create_client
 
 # ==========================================
@@ -29,8 +28,8 @@ def get_inventory(category=None):
         df = df.sort_values(by="name")
     return df
 
-def process_action(staff_name, action, item_name, qty, comment, custom_date=None):
-    date_str = custom_date if custom_date else datetime.now().strftime("%Y/%m/%d")
+def process_action(staff_name, action, item_name, qty, comment):
+    date_str = datetime.now().strftime("%Y/%m/%d")
     stock_diff = qty if action == "追加" else -qty
         
     res = supabase.table("equip_items").select("stock").eq("name", item_name).execute()
@@ -56,101 +55,115 @@ def delete_history_record(record_id, item_name, action, qty):
 # ==========================================
 # 3. モダンUI・CSS設定
 # ==========================================
-st.set_page_config(page_title="在庫・貸出管理Pro", page_icon="🏢", layout="centered")
+st.set_page_config(page_title="在庫・貸出管理Pro", page_icon="🏢", layout="centered", initial_sidebar_state="collapsed")
 
 pro_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
 html, body, [class*="css"] { font-family: 'Noto Sans JP', sans-serif !important; color: #1e293b; background-color: #f8fafc; }
-div[data-testid="stForm"], .css-1r6slb0 { background-color: #ffffff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #e2e8f0; }
-input, div[data-baseweb="select"] > div { background-color: #f1f5f9 !important; border: 1px solid #cbd5e1 !important; border-radius: 8px !important; color: #334155 !important; transition: all 0.2s ease; }
-input:focus, div[data-baseweb="select"] > div:focus-within { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important; }
-div[data-testid="stNumberInput"] div[data-baseweb="base-input"] { position: relative !important; min-height: 4rem !important; overflow: hidden !important; display: flex !important; align-items: center !important; }
-div[data-testid="stNumberInput"] input { font-size: 1.5rem !important; font-weight: 700 !important; padding-left: 1rem !important; padding-right: 8rem !important; height: 4rem !important; background: transparent !important; border: none !important; }
-button[data-testid="stNumberInputStepDown"] { position: absolute !important; right: 4rem !important; width: 3.5rem !important; height: 85% !important; background-color: #3b82f6 !important; border-radius: 6px !important; margin: 0 !important; border: none !important; z-index: 10 !important; }
-button[data-testid="stNumberInputStepUp"] { position: absolute !important; right: 0.2rem !important; width: 3.5rem !important; height: 85% !important; background-color: #ef4444 !important; border-radius: 6px !important; margin: 0 !important; border: none !important; z-index: 10 !important; }
-button[data-testid="stNumberInputStepDown"] svg, button[data-testid="stNumberInputStepUp"] svg { fill: #ffffff !important; width: 1.5rem !important; height: 1.5rem !important; }
-button[data-testid="baseButton-primary"] { background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%) !important; border: none !important; border-radius: 10px !important; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important; padding: 0.75rem 1.5rem !important; transition: transform 0.1s ease, box-shadow 0.1s ease !important; }
-button[data-testid="baseButton-primary"]:active { transform: translateY(2px) !important; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2) !important; }
-button[data-testid="baseButton-primary"] p { color: #ffffff !important; font-weight: 700 !important; font-size: 1.1rem !important; }
-@media print {
-    @page { size: A4 portrait; margin: 15mm; }
-    .no-print, section[data-testid="stSidebar"], button, header { display: none !important; }
-    html, body, .main, .block-container { background: #fff !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
-    #print-table { width: 100%; border-collapse: collapse; font-size: 11pt; margin-top: 20px; font-family: 'Noto Sans JP', sans-serif; }
-    #print-table th, #print-table td { border: 1px solid #334155; padding: 8px 12px; text-align: left; }
-    #print-table th { background-color: #f1f5f9; font-weight: bold; }
-    h3 { margin-bottom: 5px !important; font-size: 18pt !important; }
-}
+div[data-testid="stRadio"] > div { display: flex; flex-wrap: wrap; gap: 10px; background: #ffffff; padding: 10px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;}
+div[data-testid="stRadio"] label { background-color: #f1f5f9; padding: 10px 15px !important; border-radius: 8px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
+div[data-testid="stRadio"] label[data-checked="true"] { background-color: #e0f2fe; border-color: #3b82f6; color: #1d4ed8; font-weight: bold; }
+table { width: 100%; border-collapse: collapse; background-color: #ffffff; margin-bottom: 20px; font-size: 14px; }
+th { background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 12px 15px; text-align: left; color: #475569; font-weight: 700; }
+td { border-bottom: 1px solid #e2e8f0; padding: 12px 15px; color: #334155; }
+.card-box { background-color: #ffffff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; margin-bottom: 20px;}
 </style>
 """
 st.markdown(pro_css, unsafe_allow_html=True)
 
 # ==========================================
-# 4. サイドバー・ナビゲーション
+# 4. ヘッダー・横並びナビゲーション
 # ==========================================
-st.sidebar.markdown("<h2 style='text-align: center; color: #1e293b; margin-bottom: 30px;'>🏢 管理メニュー</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center; color: #1e293b; margin-top: -30px; margin-bottom: 20px;'>🏢 在庫・貸出管理</h2>", unsafe_allow_html=True)
 
-PAGES = {
-    "📝 入力 (出入り記録)": "input",
-    "📦 リアルタイム現在庫": "stock",
-    "📚 貸出一覧 (履歴・印刷)": "history",
-    "⚙️ 管理・修正機能": "admin"
-}
-
-if "page" not in st.session_state:
-    st.session_state.page = "input"
-
-for page_name, page_key in PAGES.items():
-    if st.sidebar.button(page_name, use_container_width=True, type="primary" if st.session_state.page == page_key else "secondary"):
-        st.session_state.page = page_key
-        st.rerun()
-
-st.sidebar.markdown("---")
-st.sidebar.caption("© 2026 Inventory Pro")
+PAGES = ["📝 入力", "📦 在庫一覧", "👤 個別履歴", "📚 全履歴", "⚙️ 管理"]
+selected_page = st.radio("メニュー", PAGES, horizontal=True, label_visibility="collapsed")
 
 # ==========================================
 # 5. 各画面のロジック
 # ==========================================
-if st.session_state.page == "input":
-    st.markdown("<h3>📝 道具・制服の出入り記録</h3>", unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(["🪟 ガラス道具", "👕 制服"])
+if selected_page == "📝 入力":
+    tab1, tab2 = st.tabs(["👕 制服", "🪟 ガラス道具"])
     
-    for tab, category, color_theme in zip([tab1, tab2], ["ガラス道具", "制服"], ["#e0f2fe", "#f3e8ff"]):
-        with tab:
-            st.markdown(f"<div style='background-color: {color_theme}; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-weight: 700; color: #1e293b;'>{category}の入力フォーム</div>", unsafe_allow_html=True)
-            df_items = get_inventory(category)
-            item_list = df_items['name'].tolist() if not df_items.empty else []
+    # --- 制服の入力フォーム（2段階ドロップダウン対応） ---
+    with tab1:
+        st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color: #1e293b; margin-bottom: 20px;'>👕 制服の入力フォーム</h4>", unsafe_allow_html=True)
+        
+        # 動的UIのため st.form を使用しない
+        action_u = st.radio("区分", ["支給", "追加"], horizontal=True, key="action_u")
+        
+        col_u1, col_u2 = st.columns([1, 1])
+        with col_u1:
+            if action_u == "追加":
+                staff_u = st.text_input("👤 スタッフ名", value="会社購入", disabled=True, key="staff_u_add")
+            else:
+                staff_u = st.text_input("👤 スタッフ名 (必須)", value="青山", key="staff_u_give")
+        
+        # 2段階ドロップダウンのロジック
+        df_u = get_inventory("制服")
+        if not df_u.empty:
+            all_u_names = df_u['name'].tolist()
+            # 「冬シャツ」「ズボン」などの種類だけを抽出
+            base_types = sorted(list(set([name.split(" ")[0] for name in all_u_names])))
             
-            with st.form(key=f"form_{category}", clear_on_submit=True):
-                col1, col2 = st.columns([1, 1])
-                with col1:
-                    action = st.radio("区分", ["支給", "追加"], horizontal=True, key=f"action_{category}")
-                with col2:
-                    if action == "支給":
-                        staff = st.text_input("👤 スタッフ名 (必須)", key=f"staff_{category}")
-                    else:
-                        # ★修正点：追加の場合は「青山」をデフォルトに設定
-                        staff = st.text_input("👤 スタッフ名 (必須)", value="青山", key=f"staff_{category}")
-                
-                item = st.selectbox("品名を選択", item_list, key=f"item_{category}")
-                qty = st.number_input("数量", min_value=1, value=1, step=1, key=f"qty_{category}")
-                comment = st.text_input("備考 (任意)", placeholder="例: サイズ交換、破損など", key=f"comment_{category}")
-                
-                submit = st.form_submit_button("この内容で記録する", type="primary", use_container_width=True)
-                
-                if submit:
-                    if not staff.strip():
-                        st.error("⚠️ スタッフ名を入力してください。")
-                    else:
-                        process_action(staff, action, item, qty, comment)
-                        st.toast(f"{item} を{qty}個 {action}として記録しました！", icon="✅")
-                        time.sleep(1)
-                        st.rerun()
+            with col_u2:
+                selected_base = st.selectbox("種類を選択", base_types, key="base_u")
+            
+            # 選んだ種類に合致するサイズだけを抽出
+            size_options = [name for name in all_u_names if name.startswith(selected_base)]
+            item_u = st.selectbox("サイズを選択", size_options, key="item_u")
+        else:
+            item_u = st.selectbox("品名を選択", ["データなし"], key="item_u_empty")
 
-elif st.session_state.page == "stock":
-    st.markdown("<h3 class='no-print'>📦 リアルタイム現在庫</h3>", unsafe_allow_html=True)
-    category = st.radio("表示カテゴリ", ["ガラス道具", "制服"], horizontal=True)
+        qty_u = st.number_input("数量", min_value=1, value=1, step=1, key="qty_u")
+        comment_u = st.text_input("備考 (任意)", placeholder="例: サイズ交換、破損など", key="comment_u")
+        
+        if st.button("記録する (制服)", type="primary", use_container_width=True, key="btn_u"):
+            if action_u == "支給" and not staff_u.strip():
+                st.error("⚠️ スタッフ名を入力してください。")
+            else:
+                process_action(staff_u, action_u, item_u, qty_u, comment_u)
+                st.success(f"✅ {item_u} を{qty_u}個 {action_u}として記録しました！")
+                time.sleep(1)
+                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- ガラス道具の入力フォーム ---
+    with tab2:
+        st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color: #1e293b; margin-bottom: 20px;'>🪟 ガラス道具の入力フォーム</h4>", unsafe_allow_html=True)
+        
+        action_g = st.radio("区分", ["支給", "追加"], horizontal=True, key="action_g")
+        
+        col_g1, col_g2 = st.columns([1, 1])
+        with col_g1:
+            if action_g == "追加":
+                staff_g = st.text_input("👤 スタッフ名", value="会社購入", disabled=True, key="staff_g_add")
+            else:
+                staff_g = st.text_input("👤 スタッフ名 (必須)", value="青山", key="staff_g_give")
+        
+        df_g = get_inventory("ガラス道具")
+        item_list_g = df_g['name'].tolist() if not df_g.empty else []
+        with col_g2:
+            item_g = st.selectbox("品名を選択", item_list_g, key="item_g")
+            
+        qty_g = st.number_input("数量", min_value=1, value=1, step=1, key="qty_g")
+        comment_g = st.text_input("備考 (任意)", key="comment_g")
+        
+        if st.button("記録する (ガラス道具)", type="primary", use_container_width=True, key="btn_g"):
+            if action_g == "支給" and not staff_g.strip():
+                st.error("⚠️ スタッフ名を入力してください。")
+            else:
+                process_action(staff_g, action_g, item_g, qty_g, comment_g)
+                st.success(f"✅ {item_g} を{qty_g}個 {action_g}として記録しました！")
+                time.sleep(1)
+                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+elif selected_page == "📦 在庫一覧":
+    category = st.radio("表示カテゴリ", ["制服", "ガラス道具"], horizontal=True)
     df = get_inventory(category)
     
     if not df.empty:
@@ -158,90 +171,69 @@ elif st.session_state.page == "stock":
         is_alert_mode = st.checkbox(f"🚨 発注が必要なアイテムのみ表示 ({len(alerts)}件)", value=False)
         display_df = alerts if is_alert_mode else df
         
-        display_df = display_df[['name', 'stock', 'threshold', 'last_checked']].copy()
-        display_df.columns = ['品名', '現在庫', 'アラート基準', '最終更新日']
+        # 画像のフォーマットに合わせた列作成
+        display_df = display_df[['name', 'stock', 'category', 'last_checked', 'threshold']].copy()
+        display_df['備考'] = ""
+        display_df.columns = ['商品', '在庫数', '分類', '最終確認', 'アラート基準', '備考']
         
-        # 修正箇所：エラーの出ない強固なハイライト関数
+        # 表示用データフレーム（アラート基準は隠す）
+        table_df = display_df[['商品', '在庫数', '分類', '最終確認', '備考']]
+        
         def highlight_alert(row):
-            if row['現在庫'] <= row['アラート基準']:
+            # 現在庫が基準以下なら薄い赤色に
+            if row['在庫数'] <= display_df.loc[row.name, 'アラート基準']:
                 return ['background-color: #fee2e2'] * len(row)
             return [''] * len(row)
 
-        st.dataframe(
-            display_df.style.apply(highlight_alert, axis=1),
-            use_container_width=True,
-            hide_index=True
-        )
-        
-        if is_alert_mode and not alerts.empty:
-            st.markdown("---")
-            today = datetime.now().strftime("%Y/%m/%d")
-            lines = [f"【発注依頼】{today} ({category})"]
-            for _, row in alerts.iterrows():
-                lines.append(f"・{row['name']} (残り: {row['stock']} / 基準: {row['threshold']})")
-            lines.append("上記の発注をお願いいたします。")
-            share_text = "\\n".join(lines)
-            
-            btn_html = f"""
-            <button onclick="navigator.share({{title: '発注リスト', text: '{share_text}'}}).catch(e=>alert('共有機能が非対応です。表をコピーしてください。'))" 
-                style="background: #06C755; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%;">
-                💬 LINE等で発注リストをシェアする
-            </button>
-            """
-            components.html(btn_html, height=60)
+        st.markdown("<div style='margin-top: 10px;'>", unsafe_allow_html=True)
+        # st.table と .hide(axis="index") で画像通りの綺麗な一覧表を表示（スクロールなしで全件表示）
+        st.table(table_df.style.hide(axis="index").apply(highlight_alert, axis=1))
+        st.markdown("</div>", unsafe_allow_html=True)
     else:
         st.info("データがありません。")
 
-elif st.session_state.page == "history":
-    st.markdown("<h3 class='no-print'>📚 貸出・出入り履歴</h3>", unsafe_allow_html=True)
-    res_hist = supabase.table("equip_history").select("*").order("date", desc=True).order("id", desc=True).execute()
-    res_items = supabase.table("equip_items").select("name, category").execute()
+elif selected_page == "👤 個別履歴":
+    st.markdown("### 👤 スタッフ別 支給履歴リスト")
+    st.info("スタッフごとに「いつ・何を・いくつ」支給したかを時系列で確認できます。")
     
+    res_hist = supabase.table("equip_history").select("*").eq("action", "支給").order("date", desc=True).order("id", desc=True).execute()
     df_hist = pd.DataFrame(res_hist.data)
-    df_items = pd.DataFrame(res_items.data)
     
-    if df_hist.empty or df_items.empty:
-        st.info("履歴がありません。")
-    else:
-        df_hist = df_hist.merge(df_items, left_on="item_name", right_on="name", how="left")
+    if not df_hist.empty:
+        # 存在するスタッフ名のリストを取得
+        staff_list = sorted(list(set(df_hist['staff_name'].tolist())))
+        selected_staff = st.selectbox("検索するスタッフを選択してください", ["-- 選択してください --"] + staff_list)
         
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col1:
-            target_cat = st.radio("カテゴリ", ["ガラス道具", "制服"], horizontal=True)
-        with col2:
-            search_staff = st.text_input("🔍 スタッフ名検索")
-        with col3:
-            search_year = st.selectbox("📅 年指定", ["すべて"] + sorted(list(set([d[:4] for d in df_hist['date'] if isinstance(d, str)])), reverse=True))
+        if selected_staff != "-- 選択してください --":
+            staff_df = df_hist[df_hist['staff_name'] == selected_staff].copy()
+            staff_df = staff_df[['date', 'item_name', 'change_amount', 'comment']]
+            staff_df.columns = ['支給日', '支給アイテム', '数量', '備考']
+            
+            st.markdown(f"**{selected_staff}** さんの支給履歴（計 {len(staff_df)} 件）")
+            st.table(staff_df.style.hide(axis="index"))
+    else:
+        st.warning("支給履歴がまだありません。")
 
-        filtered = df_hist[df_hist['category'] == target_cat].copy()
-        if search_staff:
-            filtered = filtered[filtered['staff_name'].str.contains(search_staff, na=False)]
-        if search_year != "すべて":
-            filtered = filtered[filtered['date'].str.startswith(search_year)]
+elif selected_page == "📚 全履歴":
+    st.markdown("### 📚 すべての出入り履歴")
+    res_hist = supabase.table("equip_history").select("*").order("date", desc=True).order("id", desc=True).execute()
+    df_hist = pd.DataFrame(res_hist.data)
+    
+    if not df_hist.empty:
+        search_word = st.text_input("🔍 スタッフ名・品名で絞り込み")
+        if search_word:
+            df_hist = df_hist[df_hist['staff_name'].str.contains(search_word, na=False) | df_hist['item_name'].str.contains(search_word, na=False)]
             
-        if not filtered.empty:
-            filtered = filtered[['date', 'staff_name', 'item_name', 'action', 'change_amount', 'comment']]
-            filtered.columns = ['日付', '氏名', '道具名' if target_cat == "ガラス道具" else '制服名', '区分', '数量', '備考']
-            
-            print_mode = st.checkbox("🖨️ 印刷モード (A4・PDF用)")
-            
-            if print_mode:
-                st.markdown("<div class='no-print' style='background: #d1e7dd; padding: 15px; border-radius: 8px; color: #0f5132; margin-bottom: 20px;'>Ctrl+P (または共有ボタン) から印刷・PDF保存を実行してください。</div>", unsafe_allow_html=True)
-                table_html = filtered.to_html(index=False, escape=False)
-                st.markdown(f"""
-                <div id="print-table-wrapper">
-                    <h3>{target_cat} 出入り履歴一覧</h3>
-                    {table_html.replace('<table border="1" class="dataframe">', '<table id="print-table">')}
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.dataframe(filtered, use_container_width=True, hide_index=True)
-        else:
-            st.warning("該当する履歴がありません。")
+        display_hist = df_hist[['date', 'staff_name', 'item_name', 'action', 'change_amount', 'comment']]
+        display_hist.columns = ['日付', '氏名', '品名', '区分', '数量', '備考']
+        
+        st.dataframe(display_hist, use_container_width=True, hide_index=True)
+    else:
+        st.info("履歴がありません。")
 
-elif st.session_state.page == "admin":
-    st.markdown("<h3>⚙️ 管理・修正機能</h3>", unsafe_allow_html=True)
-    tab_master, tab_fix, tab_sync = st.tabs(["📝 マスターデータ管理", "🗑️ 履歴の修正", "🔄 初期データ流し込み(画像反映)"])
+elif selected_page == "⚙️ 管理":
+    st.markdown("### ⚙️ 管理・修正機能")
+    tab_master, tab_fix = st.tabs(["📝 アイテムの編集・追加", "🗑️ 履歴の削除(取消)"])
     
     with tab_master:
         st.info("💡 アイテムの追加、および既存のアイテムの「在庫数」「アラート基準」を変更・削除できます。")
@@ -249,43 +241,43 @@ elif st.session_state.page == "admin":
         
         with col_add:
             st.markdown("##### ▶ 新規アイテムの追加")
-            with st.form("add_item_form"):
-                n_name = st.text_input("品名")
-                n_cat = st.selectbox("カテゴリ", ["ガラス道具", "制服"])
-                n_stock = st.number_input("現在庫", value=0, step=1)
-                n_thresh = st.number_input("アラート基準", value=2 if n_cat=="制服" else 4, step=1, help="この数以下になると赤色で警告されます。")
-                if st.form_submit_button("追加する", type="primary"):
-                    if n_name:
-                        supabase.table("equip_items").insert({"name": n_name, "stock": n_stock, "category": n_cat, "threshold": n_thresh, "last_checked": ""}).execute()
-                        st.success(f"{n_name} を追加しました！")
-                        time.sleep(1)
-                        st.rerun()
-                    else:
-                        st.error("品名を入力してください。")
+            n_name = st.text_input("品名")
+            n_cat = st.selectbox("カテゴリ", ["制服", "ガラス道具"])
+            n_stock = st.number_input("現在庫", value=0, step=1)
+            n_thresh = st.number_input("アラート基準", value=2 if n_cat=="制服" else 4, step=1)
+            if st.button("追加する", type="primary"):
+                if n_name:
+                    supabase.table("equip_items").insert({"name": n_name, "stock": n_stock, "category": n_cat, "threshold": n_thresh, "last_checked": ""}).execute()
+                    st.success(f"{n_name} を追加しました！")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("品名を入力してください。")
 
         with col_edit:
             st.markdown("##### ▶ 既存アイテムの編集・削除")
-            edit_cat = st.radio("カテゴリ選択", ["ガラス道具", "制服"], key="edit_cat", horizontal=True)
+            edit_cat = st.radio("カテゴリ選択", ["制服", "ガラス道具"], key="edit_cat", horizontal=True)
             df_edit = get_inventory(edit_cat)
             if not df_edit.empty:
                 edit_item = st.selectbox("編集するアイテムを選択", df_edit['name'].tolist())
                 row = df_edit[df_edit['name'] == edit_item].iloc[0]
-                with st.form("edit_item_form"):
-                    e_stock = st.number_input("現在庫", value=int(row['stock']), step=1)
-                    e_thresh = st.number_input("アラート基準", value=int(row['threshold']), step=1)
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.form_submit_button("更新する", type="primary"):
-                            supabase.table("equip_items").update({"stock": e_stock, "threshold": e_thresh}).eq("name", edit_item).execute()
-                            st.success("更新しました！")
-                            time.sleep(1)
-                            st.rerun()
-                    with col2:
-                        if st.form_submit_button("🚨 削除"):
-                            supabase.table("equip_items").delete().eq("name", edit_item).execute()
-                            st.error("削除しました。")
-                            time.sleep(1)
-                            st.rerun()
+                
+                e_stock = st.number_input("現在庫を修正", value=int(row['stock']), step=1)
+                e_thresh = st.number_input("アラート基準を修正", value=int(row['threshold']), step=1)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("更新する", type="primary"):
+                        supabase.table("equip_items").update({"stock": e_stock, "threshold": e_thresh}).eq("name", edit_item).execute()
+                        st.success("更新しました！")
+                        time.sleep(1)
+                        st.rerun()
+                with col2:
+                    if st.button("🚨 削除"):
+                        supabase.table("equip_items").delete().eq("name", edit_item).execute()
+                        st.error("削除しました。")
+                        time.sleep(1)
+                        st.rerun()
                             
     with tab_fix:
         st.info("誤って入力してしまった履歴を安全に削除し、在庫数を元に戻します。")
@@ -311,82 +303,3 @@ elif st.session_state.page == "admin":
                     st.toast("履歴を削除し、在庫を修正しました。", icon="🗑️")
                     time.sleep(1.5)
                     st.rerun()
-
-    with tab_sync:
-        st.warning("⚠️ 提供された画像（スプレッドシート）のデータをアプリに一括で流し込みます。※現在のデータは上書きされます。セットアップ完了後に1回だけ押してください。")
-        if st.button("🚨 スプレッドシートのデータを一括で同期する", type="primary"):
-            with st.spinner("データを同期中...（数秒かかります）"):
-                # 1. 既存データをクリア
-                res = supabase.table("equip_items").select("name").execute()
-                for r in res.data:
-                    supabase.table("equip_items").delete().eq("name", r['name']).execute()
-                res_h = supabase.table("equip_history").select("id").execute()
-                for r in res_h.data:
-                    supabase.table("equip_history").delete().eq("id", r['id']).execute()
-
-                # 2. ガラス道具のリアルタイム在庫を一括登録
-                glass = [
-                    {"name": "SSホルダー", "stock": 19, "category": "ガラス道具", "threshold": 4},
-                    {"name": "カールコード", "stock": 25, "category": "ガラス道具", "threshold": 4},
-                    {"name": "ガラスカッター", "stock": 9, "category": "ガラス道具", "threshold": 4},
-                    {"name": "シャンプーカバー", "stock": 6, "category": "ガラス道具", "threshold": 4},
-                    {"name": "シャンプーホルダー", "stock": 5, "category": "ガラス道具", "threshold": 4},
-                    {"name": "チャンネル16インチ", "stock": 6, "category": "ガラス道具", "threshold": 4},
-                    {"name": "チャンネル20インチ", "stock": 13, "category": "ガラス道具", "threshold": 4},
-                    {"name": "ハンドル", "stock": 14, "category": "ガラス道具", "threshold": 4},
-                    {"name": "ヘルメット", "stock": 6, "category": "ガラス道具", "threshold": 4},
-                    {"name": "腰袋", "stock": 4, "category": "ガラス道具", "threshold": 4},
-                    {"name": "洗剤容器", "stock": 7, "category": "ガラス道具", "threshold": 4}
-                ]
-                supabase.table("equip_items").insert(glass).execute()
-
-                # 3. 制服のリアルタイム在庫を一括登録 (3を下回る = 2以下 でアラート)
-                uniform_names = [
-                    ("ジャンパー (L)", 4), ("ジャンパー (LL)", 4), ("ジャンパー (M)", 4),
-                    ("ズボン (100)", 5), ("ズボン (105)", 3), ("ズボン (110)", 4),
-                    ("ズボン (73)", 6), ("ズボン (76)", 4), ("ズボン (79)", 2),
-                    ("ズボン (82)", 5), ("ズボン (85)", 6), ("ズボン (88)", 6),
-                    ("ズボン (91)", 6), ("ズボン (95)", 6),
-                    ("ツナギ【長袖】 (3L)", 1), ("ツナギ【長袖】 (L)", 1), ("ツナギ【長袖】 (LL)", 1), ("ツナギ【長袖】 (M)", 0),
-                    ("ツナギ【半袖】 (3L)", 1), ("ツナギ【半袖】 (L)", 1), ("ツナギ【半袖】 (LL)", 1), ("ツナギ【半袖】 (M)", 0),
-                    ("ポロシャツ (L)", 6), ("ポロシャツ (LL)", 6), ("ポロシャツ (M)", 4),
-                    ("雨合羽 (L)", 1), ("雨合羽 (LL)", 1), ("雨合羽 (M)", 1),
-                    ("冬シャツ (4L)", 2), ("冬シャツ (5L)", 2), ("冬シャツ (L)", 7),
-                    ("冬シャツ (LL)", 9), ("冬シャツ (M)", 7), ("冬シャツ (S)", 3),
-                    ("防寒着【ズボン】 (3L)", 0), ("防寒着【ズボン】 (L)", 3), ("防寒着【ズボン】 (LL)", 3), ("防寒着【ズボン】 (M)", 3),
-                    ("防寒着【上着】 (L)", 3), ("防寒着【上着】 (LL)", 3), ("防寒着【上着】 (M)", 3)
-                ]
-                uniforms = [{"name": n, "stock": s, "category": "制服", "threshold": 2, "last_checked": "2026/07/18"} for n, s in uniform_names]
-                supabase.table("equip_items").insert(uniforms).execute()
-
-                # 4. 履歴データの一括登録
-                history_data = [
-                    # 制服履歴
-                    {"date": "2026/06/18", "staff_name": "青山幸弘", "item_name": "雨合羽 (M)", "action": "追加", "change_amount": 1, "comment": ""},
-                    {"date": "2026/06/18", "staff_name": "近藤貴廣", "item_name": "雨合羽 (M)", "action": "支給", "change_amount": 1, "comment": ""},
-                    {"date": "2026/06/18", "staff_name": "青山幸弘", "item_name": "ポロシャツ (M)", "action": "追加", "change_amount": 2, "comment": ""},
-                    {"date": "2026/06/18", "staff_name": "青山幸弘", "item_name": "ポロシャツ (L)", "action": "追加", "change_amount": 2, "comment": ""},
-                    {"date": "2026/06/20", "staff_name": "青山幸弘", "item_name": "ツナギ【長袖】 (3L)", "action": "追加", "change_amount": 1, "comment": ""},
-                    {"date": "2026/06/20", "staff_name": "青山幸弘", "item_name": "ツナギ【長袖】 (L)", "action": "追加", "change_amount": 1, "comment": ""},
-                    {"date": "2026/06/20", "staff_name": "青山幸弘", "item_name": "ツナギ【長袖】 (LL)", "action": "追加", "change_amount": 1, "comment": ""},
-                    {"date": "2026/06/20", "staff_name": "青山幸弘", "item_name": "ツナギ【半袖】 (3L)", "action": "追加", "change_amount": 1, "comment": ""},
-                    {"date": "2026/06/20", "staff_name": "青山幸弘", "item_name": "ツナギ【半袖】 (L)", "action": "追加", "change_amount": 1, "comment": ""},
-                    {"date": "2026/06/20", "staff_name": "青山幸弘", "item_name": "ツナギ【半袖】 (LL)", "action": "追加", "change_amount": 1, "comment": ""},
-                    {"date": "2026/07/13", "staff_name": "近藤貴廣", "item_name": "ポロシャツ (M)", "action": "支給", "change_amount": 2, "comment": ""},
-                    # ガラス道具履歴
-                    {"date": "2026/06/14", "staff_name": "前田茂樹", "item_name": "洗剤容器", "action": "支給", "change_amount": 1, "comment": ""},
-                    {"date": "2026/06/16", "staff_name": "今阪唯木", "item_name": "チャンネル20インチ", "action": "支給", "change_amount": 1, "comment": ""},
-                    {"date": "2026/06/19", "staff_name": "小原眞和", "item_name": "チャンネル20インチ", "action": "支給", "change_amount": 1, "comment": ""},
-                    {"date": "2026/06/19", "staff_name": "小原眞和", "item_name": "ハンドル", "action": "支給", "change_amount": 1, "comment": ""},
-                    {"date": "2026/06/20", "staff_name": "森建一", "item_name": "洗剤容器", "action": "支給", "change_amount": 1, "comment": ""},
-                    {"date": "2026/07/08", "staff_name": "今阪唯木", "item_name": "シャンプーカバー", "action": "支給", "change_amount": 1, "comment": ""},
-                    {"date": "2026/07/09", "staff_name": "中嶋秀信", "item_name": "ヘルメット", "action": "支給", "change_amount": 1, "comment": ""},
-                    {"date": "2026/07/11", "staff_name": "森建一", "item_name": "ハンドル", "action": "支給", "change_amount": 1, "comment": ""},
-                    {"date": "2026/07/12", "staff_name": "澤田哲紀", "item_name": "腰袋", "action": "支給", "change_amount": 1, "comment": ""},
-                    {"date": "2026/07/14", "staff_name": "竹村悟史", "item_name": "シャンプーカバー", "action": "支給", "change_amount": 1, "comment": ""}
-                ]
-                supabase.table("equip_history").insert(history_data).execute()
-
-            st.success("スプレッドシートの完全同期が完了しました！履歴と現在庫をご確認ください。")
-            time.sleep(2)
-            st.rerun()
