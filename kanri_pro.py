@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import time
+import streamlit.components.v1 as components
 from supabase import create_client
 
 # ==========================================
@@ -28,11 +29,9 @@ def get_inventory(category=None):
         df = df.sort_values(by="name")
     return df
 
-# 初期スタッフデータの読み込み（テーブルを間借りして保存）
 def get_staff_list():
     res = supabase.table("equip_items").select("name").eq("category", "スタッフ").execute()
     if not res.data:
-        # 画像から読み取った初期メンバー
         initial_staff = ["小垣武正", "森建一", "山口徹也", "小原眞和", "中嶋秀彦", "奥山将光", "澤田智紀", "鎌倉健二", "竹村悟史", "赤尾定治", "熊谷豊樹", "武内和寿", "田中裕一", "今阪唯木", "青山幸弘", "吉川智", "林直樹", "前田茂樹", "タワーズ"]
         insert_data = [{"name": s, "stock": 0, "category": "スタッフ", "threshold": 0, "last_checked": ""} for s in initial_staff]
         supabase.table("equip_items").insert(insert_data).execute()
@@ -75,31 +74,36 @@ pro_css = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
 html, body, [class*="css"] { font-family: 'Inter', 'Noto Sans JP', sans-serif !important; color: #1e293b; background-color: #f8fafc; }
 
-/* 上部ラジオボタンを洗練されたタブ風に */
+/* ラジオボタンを洗練されたタブ風/ボタン風に */
 div[data-testid="stRadio"] > div[role="radiogroup"] { display: flex; flex-wrap: wrap; gap: 8px; background: #e2e8f0; padding: 6px; border-radius: 12px; margin-bottom: 24px; }
 div[data-testid="stRadio"] label { background-color: transparent; padding: 10px 16px !important; border-radius: 8px; cursor: pointer; transition: all 0.2s; border: none; }
 div[data-testid="stRadio"] label[data-checked="true"] { background-color: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #0f172a; font-weight: 700; }
 
-/* フォーム・カード領域の浮き出し効果 */
 .card-box { background-color: #ffffff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #e2e8f0; margin-bottom: 24px; }
 
-/* 入力フィールドのプロフェッショナル化 */
 input, div[data-baseweb="select"] > div { background-color: #f8fafc !important; border: 1px solid #cbd5e1 !important; border-radius: 8px !important; color: #334155 !important; transition: all 0.2s ease; }
 input:focus, div[data-baseweb="select"] > div:focus-within { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important; background-color: #ffffff !important;}
 
-/* 数量入力の視認性向上 */
 div[data-testid="stNumberInput"] input { font-size: 1.25rem !important; font-weight: 700 !important; text-align: center;}
 
-/* プライマリーボタンのリッチ化 */
 button[data-testid="baseButton-primary"] { background: #2563eb !important; border: none !important; border-radius: 8px !important; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2) !important; padding: 0.5rem 1rem !important; transition: all 0.2s ease !important; }
 button[data-testid="baseButton-primary"]:hover { background: #1d4ed8 !important; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3) !important; transform: translateY(-1px); }
 button[data-testid="baseButton-primary"] p { color: #ffffff !important; font-weight: 600 !important; font-size: 1rem !important; }
 
-/* テーブル（表）のエンタープライズ仕様 */
 table { width: 100%; border-collapse: collapse; background-color: #ffffff; margin-bottom: 20px; font-size: 14px; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;}
 th { background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 12px 16px; text-align: left; color: #64748b; font-weight: 700; font-size: 13px; }
 td { border-bottom: 1px solid #e2e8f0; padding: 12px 16px; color: #334155; }
 tr:hover { background-color: #f1f5f9; }
+
+/* 印刷用CSS */
+@media print {
+    @page { size: A4 portrait; margin: 15mm; }
+    .no-print, section[data-testid="stSidebar"], button, header, div[data-testid="stRadio"] { display: none !important; }
+    html, body, .main, .block-container { background: #fff !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+    #print-table-wrapper table { width: 100%; border-collapse: collapse; font-size: 11pt; margin-top: 20px; font-family: 'Noto Sans JP', sans-serif; border: 1px solid #334155; }
+    #print-table-wrapper th, #print-table-wrapper td { border: 1px solid #334155; padding: 8px 12px; text-align: left; }
+    #print-table-wrapper th { background-color: #f1f5f9; font-weight: bold; }
+}
 </style>
 """
 st.markdown(pro_css, unsafe_allow_html=True)
@@ -112,7 +116,6 @@ PAGES = ["📝 入力", "📦 在庫一覧", "📚 履歴", "⚙️ 管理"]
 if "page" not in st.session_state:
     st.session_state.page = "📝 入力"
 
-# --- サイドバー ---
 st.sidebar.markdown("<h2 style='text-align: center; color: #1e293b; margin-bottom: 30px;'>🏢 管理メニュー</h2>", unsafe_allow_html=True)
 for p in PAGES:
     if st.sidebar.button(p, use_container_width=True, type="primary" if st.session_state.page == p else "secondary"):
@@ -121,7 +124,6 @@ for p in PAGES:
 st.sidebar.markdown("---")
 st.sidebar.caption("© 2026 Inventory Pro")
 
-# --- 上部メニュー ---
 st.markdown("<h3 style='color: #1e293b; margin-top: -20px; margin-bottom: 10px; font-weight: 700;'>🏢 備品・制服 貸出管理</h3>", unsafe_allow_html=True)
 st.radio("メニュー", PAGES, horizontal=True, label_visibility="collapsed", key="page")
 
@@ -129,10 +131,12 @@ st.radio("メニュー", PAGES, horizontal=True, label_visibility="collapsed", k
 # ==========================================
 # 5. 各画面のロジック
 # ==========================================
+
+# ----------------- 📝 入力ページ -----------------
 if st.session_state.page == "📝 入力":
+    st.markdown("### 📝 入力")
     tab1, tab2 = st.tabs(["👕 制服", "🪟 ガラス道具"])
     
-    # --- 制服の入力フォーム ---
     with tab1:
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
         st.markdown("<h4 style='color: #1e293b; margin-bottom: 20px; font-weight: 700;'>👕 制服の出入り記録</h4>", unsafe_allow_html=True)
@@ -146,7 +150,6 @@ if st.session_state.page == "📝 入力":
             else:
                 staff_u = st.selectbox("👤 支給するスタッフ", STAFF_LIST, key="staff_u_give")
         
-        # 2段階ドロップダウン
         df_u = get_inventory("制服")
         if not df_u.empty:
             all_u_names = df_u['name'].tolist()
@@ -154,7 +157,9 @@ if st.session_state.page == "📝 入力":
             with col_u2:
                 selected_base = st.selectbox("種類を選択", base_types, key="base_u")
             size_options = [name for name in all_u_names if name.startswith(selected_base)]
-            item_u = st.selectbox("サイズを選択", size_options, key="item_u")
+            
+            # 【修正1】ズボンのキーボード問題を解決するため、サイズ選択を「横並びのボタン」に変更
+            item_u = st.radio("サイズを選択", size_options, horizontal=True, key="item_u")
         else:
             item_u = st.selectbox("品名を選択", ["データなし"], key="item_u_empty")
 
@@ -168,7 +173,6 @@ if st.session_state.page == "📝 入力":
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- ガラス道具の入力フォーム ---
     with tab2:
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
         st.markdown("<h4 style='color: #1e293b; margin-bottom: 20px; font-weight: 700;'>🪟 ガラス道具の出入り記録</h4>", unsafe_allow_html=True)
@@ -197,15 +201,23 @@ if st.session_state.page == "📝 入力":
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
+# ----------------- 📦 在庫一覧ページ -----------------
 elif st.session_state.page == "📦 在庫一覧":
+    st.markdown("### 📦 在庫一覧")
     category = st.radio("表示カテゴリ", ["制服", "ガラス道具"], horizontal=True)
     df = get_inventory(category)
     
     if not df.empty:
         alerts = df[df['stock'] <= df['threshold']]
-        is_alert_mode = st.checkbox(f"🚨 発注が必要なアイテムのみ表示 ({len(alerts)}件)", value=False)
-        display_df = alerts if is_alert_mode else df
         
+        col1, col2 = st.columns(2)
+        with col1:
+            is_alert_mode = st.checkbox(f"🚨 発注が必要なアイテムのみ表示 ({len(alerts)}件)", value=False)
+        with col2:
+            # 【修正3】A4印刷モードの復活
+            print_mode = st.checkbox("🖨️ A4印刷・PDF出力モード")
+            
+        display_df = alerts if is_alert_mode else df
         display_df = display_df[['name', 'stock', 'category', 'last_checked', 'threshold']].copy()
         display_df['備考'] = ""
         display_df.columns = ['商品', '在庫数', '分類', '最終確認', 'アラート基準', '備考']
@@ -218,40 +230,86 @@ elif st.session_state.page == "📦 在庫一覧":
         styled_table = display_df.style.hide(axis="index").hide(subset=["アラート基準"], axis="columns").apply(highlight_alert, axis=1)
 
         st.markdown("<div style='margin-top: 15px;'>", unsafe_allow_html=True)
-        st.table(styled_table)
+        
+        if print_mode:
+            st.markdown("<div class='no-print' style='background: #d1e7dd; padding: 15px; border-radius: 8px; color: #0f5132; margin-bottom: 20px;'>Ctrl+P (スマホの場合は共有ボタン) から印刷・PDF保存を実行してください。</div>", unsafe_allow_html=True)
+            table_html = styled_table.to_html()
+            st.markdown(f"""
+            <div id="print-table-wrapper">
+                <h3>{category} 現在庫一覧</h3>
+                {table_html}
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.table(styled_table)
+            
         st.markdown("</div>", unsafe_allow_html=True)
+        
+        # 【修正4】LINE等送信ボタンの復活
+        if is_alert_mode and not alerts.empty:
+            st.markdown("---")
+            today = datetime.now().strftime("%Y/%m/%d")
+            lines = [f"【発注依頼】{today} ({category})"]
+            for _, row in alerts.iterrows():
+                lines.append(f"・{row['name']} (残り: {row['stock']} / 基準: {row['threshold']})")
+            lines.append("上記の発注をお願いいたします。")
+            share_text = "\\n".join(lines)
+            
+            btn_html = f"""
+            <button class="no-print" onclick="navigator.share({{title: '発注リスト', text: '{share_text}'}}).catch(e=>alert('お使いのブラウザは共有機能に非対応です。表をコピーしてください。'))" 
+                style="background: #06C755; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%;">
+                💬 LINE等で発注リストをシェアする
+            </button>
+            """
+            components.html(btn_html, height=60)
     else:
         st.info("データがありません。")
 
+# ----------------- 📚 履歴ページ -----------------
 elif st.session_state.page == "📚 履歴":
-    st.markdown("### 📚 履歴 (一覧・検索)")
+    st.markdown("### 📚 履歴")
     res_hist = supabase.table("equip_history").select("*").order("date", desc=True).order("id", desc=True).execute()
-    df_hist = pd.DataFrame(res_hist.data)
+    res_items = supabase.table("equip_items").select("name, category").execute()
     
-    if not df_hist.empty:
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
-            # 検索用スタッフリスト（会社購入も含める）
-            search_staff = st.selectbox("👤 氏名で絞り込み", ["すべて", "会社購入"] + STAFF_LIST)
-        with col_s2:
-            search_item = st.text_input("🔍 品名で絞り込み (一部入力でもOK)")
-            
-        filtered = df_hist.copy()
-        if search_staff != "すべて":
-            filtered = filtered[filtered['staff_name'] == search_staff]
-        if search_item:
-            filtered = filtered[filtered['item_name'].str.contains(search_item, na=False)]
-            
-        display_hist = filtered[['date', 'staff_name', 'item_name', 'action', 'change_amount', 'comment']]
-        display_hist.columns = ['日付', '氏名', '品名', '区分', '数量', '備考']
+    df_hist = pd.DataFrame(res_hist.data)
+    df_items = pd.DataFrame(res_items.data)
+    
+    if not df_hist.empty and not df_items.empty:
+        # カテゴリ情報を紐付け
+        df_hist = df_hist.merge(df_items, left_on="item_name", right_on="name", how="left")
         
-        st.markdown(f"<div style='margin-top: 10px; margin-bottom: 5px; font-size: 14px; color: #475569;'>検索結果: {len(filtered)} 件</div>", unsafe_allow_html=True)
-        st.table(display_hist.style.hide(axis="index"))
+        # 【修正2】履歴ページも制服とガラス道具で分割
+        tab_u, tab_g = st.tabs(["👕 制服", "🪟 ガラス道具"])
+        
+        for tab, cat in zip([tab_u, tab_g], ["制服", "ガラス道具"]):
+            with tab:
+                filtered_cat = df_hist[df_hist['category'] == cat].copy()
+                
+                if not filtered_cat.empty:
+                    col_s1, col_s2 = st.columns(2)
+                    with col_s1:
+                        search_staff = st.selectbox(f"👤 氏名で絞り込み ({cat})", ["すべて", "会社購入"] + STAFF_LIST, key=f"h_staff_{cat}")
+                    with col_s2:
+                        search_item = st.text_input(f"🔍 品名で絞り込み ({cat})", key=f"h_item_{cat}")
+                        
+                    if search_staff != "すべて":
+                        filtered_cat = filtered_cat[filtered_cat['staff_name'] == search_staff]
+                    if search_item:
+                        filtered_cat = filtered_cat[filtered_cat['item_name'].str.contains(search_item, na=False)]
+                        
+                    display_hist = filtered_cat[['date', 'staff_name', 'item_name', 'action', 'change_amount', 'comment']]
+                    display_hist.columns = ['日付', '氏名', '品名', '区分', '数量', '備考']
+                    
+                    st.markdown(f"<div style='margin-top: 10px; margin-bottom: 5px; font-size: 14px; color: #475569;'>検索結果: {len(filtered_cat)} 件</div>", unsafe_allow_html=True)
+                    st.table(display_hist.style.hide(axis="index"))
+                else:
+                    st.info(f"{cat}の履歴がありません。")
     else:
         st.info("履歴がありません。")
 
+# ----------------- ⚙️ 管理ページ -----------------
 elif st.session_state.page == "⚙️ 管理":
-    st.markdown("### ⚙️ 管理・修正機能")
+    st.markdown("### ⚙️ 管理")
     tab_master, tab_staff, tab_fix = st.tabs(["📝 アイテムの編集", "👤 スタッフ管理", "🗑️ 履歴の取消"])
     
     with tab_master:
