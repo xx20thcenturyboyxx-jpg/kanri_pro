@@ -16,24 +16,6 @@ def init_connection():
 
 supabase = init_connection()
 
-# 初期データの自動登録（テーブルが空の場合のみ実行）
-def setup_initial_data():
-    res = supabase.table("equip_items").select("name").limit(1).execute()
-    if len(res.data) == 0:
-        initial_data = []
-        # ガラス道具 (10種)
-        glass_items = ["シャンプーカバー", "シャンプーホルダー", "チャンネル20インチ", "チャンネル16インチ", "ハンドル", "カールコード", "洗剤容器", "ガラスカッター", "SSホルダー", "ヘルメット"]
-        for g in glass_items:
-            initial_data.append({"name": g, "stock": 0, "category": "ガラス道具", "threshold": 4, "last_checked": ""})
-            
-        # 制服 (41種)
-        uniform_items = ["ジャンパー (LL)", "ジャンパー (L)", "ジャンパー (M)", "冬シャツ (5L)", "冬シャツ (4L)", "冬シャツ (LL)", "冬シャツ (L)", "冬シャツ (M)", "冬シャツ (S)", "ポロシャツ (LL)", "ポロシャツ (L)", "ポロシャツ (M)", "防寒着【上着】 (LL)", "防寒着【上着】 (L)", "防寒着【上着】 (M)", "防寒着【ズボン】 (3L)", "防寒着【ズボン】 (LL)", "防寒着【ズボン】 (L)", "防寒着【ズボン】 (M)", "雨合羽 (LL)", "雨合羽 (L)", "雨合羽 (M)", "ツナギ【長袖】 (3L)", "ツナギ【長袖】 (LL)", "ツナギ【長袖】 (L)", "ツナギ【長袖】 (M)", "ツナギ【半袖】 (3L)", "ツナギ【半袖】 (LL)", "ツナギ【半袖】 (L)", "ツナギ【半袖】 (M)", "ズボン (73)", "ズボン (76)", "ズボン (79)", "ズボン (82)", "ズボン (85)", "ズボン (88)", "ズボン (91)", "ズボン (95)", "ズボン (100)", "ズボン (105)", "ズボン (110)"]
-        for u in uniform_items:
-            initial_data.append({"name": u, "stock": 0, "category": "制服", "threshold": 5, "last_checked": ""})
-        supabase.table("equip_items").insert(initial_data).execute()
-
-setup_initial_data()
-
 # ==========================================
 # 2. DB操作関数群 
 # ==========================================
@@ -47,11 +29,9 @@ def get_inventory(category=None):
         df = df.sort_values(by="name")
     return df
 
-def process_action(staff_name, action, item_name, qty, comment):
-    now = datetime.now()
-    date_str = now.strftime("%Y/%m/%d")
+def process_action(staff_name, action, item_name, qty, comment, custom_date=None):
+    date_str = custom_date if custom_date else datetime.now().strftime("%Y/%m/%d")
     stock_diff = qty if action == "追加" else -qty
-    staff_record = "会社購入" if action == "追加" else staff_name
         
     res = supabase.table("equip_items").select("stock").eq("name", item_name).execute()
     if res.data:
@@ -60,7 +40,7 @@ def process_action(staff_name, action, item_name, qty, comment):
         supabase.table("equip_items").update({"stock": new_stock, "last_checked": date_str}).eq("name", item_name).execute()
     
     supabase.table("equip_history").insert({
-        "date": date_str, "staff_name": staff_record, "item_name": item_name, 
+        "date": date_str, "staff_name": staff_name, "item_name": item_name, 
         "action": action, "change_amount": qty, "comment": comment
     }).execute()
 
@@ -150,18 +130,18 @@ if st.session_state.page == "input":
                     if action == "支給":
                         staff = st.text_input("👤 スタッフ名 (必須)", key=f"staff_{category}")
                     else:
-                        st.text_input("👤 スタッフ名", value="会社購入", disabled=True, key=f"staff_disabled_{category}")
-                        staff = "会社購入"
+                        # ★修正点：追加の場合は「青山」をデフォルトに設定
+                        staff = st.text_input("👤 スタッフ名 (必須)", value="青山", key=f"staff_{category}")
                 
                 item = st.selectbox("品名を選択", item_list, key=f"item_{category}")
                 qty = st.number_input("数量", min_value=1, value=1, step=1, key=f"qty_{category}")
-                comment = st.text_input("備考 (任意)", placeholder="例: サイズ交換、破損による再支給など", key=f"comment_{category}")
+                comment = st.text_input("備考 (任意)", placeholder="例: サイズ交換、破損など", key=f"comment_{category}")
                 
                 submit = st.form_submit_button("この内容で記録する", type="primary", use_container_width=True)
                 
                 if submit:
-                    if action == "支給" and not staff.strip():
-                        st.error("⚠️ 支給の場合はスタッフ名を入力してください。")
+                    if not staff.strip():
+                        st.error("⚠️ スタッフ名を入力してください。")
                     else:
                         process_action(staff, action, item, qty, comment)
                         st.toast(f"{item} を{qty}個 {action}として記録しました！", icon="✅")
@@ -180,11 +160,17 @@ elif st.session_state.page == "stock":
         
         display_df = display_df[['name', 'stock', 'threshold', 'last_checked']].copy()
         display_df.columns = ['品名', '現在庫', 'アラート基準', '最終更新日']
-        display_df.set_index('品名', inplace=True)
         
+        # 修正箇所：エラーの出ない強固なハイライト関数
+        def highlight_alert(row):
+            if row['現在庫'] <= row['アラート基準']:
+                return ['background-color: #fee2e2'] * len(row)
+            return [''] * len(row)
+
         st.dataframe(
-            display_df.style.apply(lambda x: ['background-color: #fee2e2' if v <= x['アラート基準'] else '' for v in x], subset=['現在庫'], axis=1),
-            use_container_width=True
+            display_df.style.apply(highlight_alert, axis=1),
+            use_container_width=True,
+            hide_index=True
         )
         
         if is_alert_mode and not alerts.empty:
@@ -208,7 +194,7 @@ elif st.session_state.page == "stock":
 
 elif st.session_state.page == "history":
     st.markdown("<h3 class='no-print'>📚 貸出・出入り履歴</h3>", unsafe_allow_html=True)
-    res_hist = supabase.table("equip_history").select("*").order("id", desc=True).execute()
+    res_hist = supabase.table("equip_history").select("*").order("date", desc=True).order("id", desc=True).execute()
     res_items = supabase.table("equip_items").select("name, category").execute()
     
     df_hist = pd.DataFrame(res_hist.data)
@@ -254,12 +240,53 @@ elif st.session_state.page == "history":
             st.warning("該当する履歴がありません。")
 
 elif st.session_state.page == "admin":
-    st.markdown("<h3>⚙️ 管理・履歴の修正</h3>", unsafe_allow_html=True)
-    tab_master, tab_fix = st.tabs(["📝 マスターデータ管理", "🗑️ 履歴の修正 (誤操作取り消し)"])
+    st.markdown("<h3>⚙️ 管理・修正機能</h3>", unsafe_allow_html=True)
+    tab_master, tab_fix, tab_sync = st.tabs(["📝 マスターデータ管理", "🗑️ 履歴の修正", "🔄 初期データ流し込み(画像反映)"])
     
     with tab_master:
-        st.write("準備中：アイテムの追加や基準値の変更機能（※現状のデータでそのまま運用可能です）")
+        st.info("💡 アイテムの追加、および既存のアイテムの「在庫数」「アラート基準」を変更・削除できます。")
+        col_add, col_edit = st.columns(2)
         
+        with col_add:
+            st.markdown("##### ▶ 新規アイテムの追加")
+            with st.form("add_item_form"):
+                n_name = st.text_input("品名")
+                n_cat = st.selectbox("カテゴリ", ["ガラス道具", "制服"])
+                n_stock = st.number_input("現在庫", value=0, step=1)
+                n_thresh = st.number_input("アラート基準", value=2 if n_cat=="制服" else 4, step=1, help="この数以下になると赤色で警告されます。")
+                if st.form_submit_button("追加する", type="primary"):
+                    if n_name:
+                        supabase.table("equip_items").insert({"name": n_name, "stock": n_stock, "category": n_cat, "threshold": n_thresh, "last_checked": ""}).execute()
+                        st.success(f"{n_name} を追加しました！")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("品名を入力してください。")
+
+        with col_edit:
+            st.markdown("##### ▶ 既存アイテムの編集・削除")
+            edit_cat = st.radio("カテゴリ選択", ["ガラス道具", "制服"], key="edit_cat", horizontal=True)
+            df_edit = get_inventory(edit_cat)
+            if not df_edit.empty:
+                edit_item = st.selectbox("編集するアイテムを選択", df_edit['name'].tolist())
+                row = df_edit[df_edit['name'] == edit_item].iloc[0]
+                with st.form("edit_item_form"):
+                    e_stock = st.number_input("現在庫", value=int(row['stock']), step=1)
+                    e_thresh = st.number_input("アラート基準", value=int(row['threshold']), step=1)
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.form_submit_button("更新する", type="primary"):
+                            supabase.table("equip_items").update({"stock": e_stock, "threshold": e_thresh}).eq("name", edit_item).execute()
+                            st.success("更新しました！")
+                            time.sleep(1)
+                            st.rerun()
+                    with col2:
+                        if st.form_submit_button("🚨 削除"):
+                            supabase.table("equip_items").delete().eq("name", edit_item).execute()
+                            st.error("削除しました。")
+                            time.sleep(1)
+                            st.rerun()
+                            
     with tab_fix:
         st.info("誤って入力してしまった履歴を安全に削除し、在庫数を元に戻します。")
         res_hist = supabase.table("equip_history").select("*").order("id", desc=True).limit(50).execute()
@@ -284,3 +311,82 @@ elif st.session_state.page == "admin":
                     st.toast("履歴を削除し、在庫を修正しました。", icon="🗑️")
                     time.sleep(1.5)
                     st.rerun()
+
+    with tab_sync:
+        st.warning("⚠️ 提供された画像（スプレッドシート）のデータをアプリに一括で流し込みます。※現在のデータは上書きされます。セットアップ完了後に1回だけ押してください。")
+        if st.button("🚨 スプレッドシートのデータを一括で同期する", type="primary"):
+            with st.spinner("データを同期中...（数秒かかります）"):
+                # 1. 既存データをクリア
+                res = supabase.table("equip_items").select("name").execute()
+                for r in res.data:
+                    supabase.table("equip_items").delete().eq("name", r['name']).execute()
+                res_h = supabase.table("equip_history").select("id").execute()
+                for r in res_h.data:
+                    supabase.table("equip_history").delete().eq("id", r['id']).execute()
+
+                # 2. ガラス道具のリアルタイム在庫を一括登録
+                glass = [
+                    {"name": "SSホルダー", "stock": 19, "category": "ガラス道具", "threshold": 4},
+                    {"name": "カールコード", "stock": 25, "category": "ガラス道具", "threshold": 4},
+                    {"name": "ガラスカッター", "stock": 9, "category": "ガラス道具", "threshold": 4},
+                    {"name": "シャンプーカバー", "stock": 6, "category": "ガラス道具", "threshold": 4},
+                    {"name": "シャンプーホルダー", "stock": 5, "category": "ガラス道具", "threshold": 4},
+                    {"name": "チャンネル16インチ", "stock": 6, "category": "ガラス道具", "threshold": 4},
+                    {"name": "チャンネル20インチ", "stock": 13, "category": "ガラス道具", "threshold": 4},
+                    {"name": "ハンドル", "stock": 14, "category": "ガラス道具", "threshold": 4},
+                    {"name": "ヘルメット", "stock": 6, "category": "ガラス道具", "threshold": 4},
+                    {"name": "腰袋", "stock": 4, "category": "ガラス道具", "threshold": 4},
+                    {"name": "洗剤容器", "stock": 7, "category": "ガラス道具", "threshold": 4}
+                ]
+                supabase.table("equip_items").insert(glass).execute()
+
+                # 3. 制服のリアルタイム在庫を一括登録 (3を下回る = 2以下 でアラート)
+                uniform_names = [
+                    ("ジャンパー (L)", 4), ("ジャンパー (LL)", 4), ("ジャンパー (M)", 4),
+                    ("ズボン (100)", 5), ("ズボン (105)", 3), ("ズボン (110)", 4),
+                    ("ズボン (73)", 6), ("ズボン (76)", 4), ("ズボン (79)", 2),
+                    ("ズボン (82)", 5), ("ズボン (85)", 6), ("ズボン (88)", 6),
+                    ("ズボン (91)", 6), ("ズボン (95)", 6),
+                    ("ツナギ【長袖】 (3L)", 1), ("ツナギ【長袖】 (L)", 1), ("ツナギ【長袖】 (LL)", 1), ("ツナギ【長袖】 (M)", 0),
+                    ("ツナギ【半袖】 (3L)", 1), ("ツナギ【半袖】 (L)", 1), ("ツナギ【半袖】 (LL)", 1), ("ツナギ【半袖】 (M)", 0),
+                    ("ポロシャツ (L)", 6), ("ポロシャツ (LL)", 6), ("ポロシャツ (M)", 4),
+                    ("雨合羽 (L)", 1), ("雨合羽 (LL)", 1), ("雨合羽 (M)", 1),
+                    ("冬シャツ (4L)", 2), ("冬シャツ (5L)", 2), ("冬シャツ (L)", 7),
+                    ("冬シャツ (LL)", 9), ("冬シャツ (M)", 7), ("冬シャツ (S)", 3),
+                    ("防寒着【ズボン】 (3L)", 0), ("防寒着【ズボン】 (L)", 3), ("防寒着【ズボン】 (LL)", 3), ("防寒着【ズボン】 (M)", 3),
+                    ("防寒着【上着】 (L)", 3), ("防寒着【上着】 (LL)", 3), ("防寒着【上着】 (M)", 3)
+                ]
+                uniforms = [{"name": n, "stock": s, "category": "制服", "threshold": 2, "last_checked": "2026/07/18"} for n, s in uniform_names]
+                supabase.table("equip_items").insert(uniforms).execute()
+
+                # 4. 履歴データの一括登録
+                history_data = [
+                    # 制服履歴
+                    {"date": "2026/06/18", "staff_name": "青山幸弘", "item_name": "雨合羽 (M)", "action": "追加", "change_amount": 1, "comment": ""},
+                    {"date": "2026/06/18", "staff_name": "近藤貴廣", "item_name": "雨合羽 (M)", "action": "支給", "change_amount": 1, "comment": ""},
+                    {"date": "2026/06/18", "staff_name": "青山幸弘", "item_name": "ポロシャツ (M)", "action": "追加", "change_amount": 2, "comment": ""},
+                    {"date": "2026/06/18", "staff_name": "青山幸弘", "item_name": "ポロシャツ (L)", "action": "追加", "change_amount": 2, "comment": ""},
+                    {"date": "2026/06/20", "staff_name": "青山幸弘", "item_name": "ツナギ【長袖】 (3L)", "action": "追加", "change_amount": 1, "comment": ""},
+                    {"date": "2026/06/20", "staff_name": "青山幸弘", "item_name": "ツナギ【長袖】 (L)", "action": "追加", "change_amount": 1, "comment": ""},
+                    {"date": "2026/06/20", "staff_name": "青山幸弘", "item_name": "ツナギ【長袖】 (LL)", "action": "追加", "change_amount": 1, "comment": ""},
+                    {"date": "2026/06/20", "staff_name": "青山幸弘", "item_name": "ツナギ【半袖】 (3L)", "action": "追加", "change_amount": 1, "comment": ""},
+                    {"date": "2026/06/20", "staff_name": "青山幸弘", "item_name": "ツナギ【半袖】 (L)", "action": "追加", "change_amount": 1, "comment": ""},
+                    {"date": "2026/06/20", "staff_name": "青山幸弘", "item_name": "ツナギ【半袖】 (LL)", "action": "追加", "change_amount": 1, "comment": ""},
+                    {"date": "2026/07/13", "staff_name": "近藤貴廣", "item_name": "ポロシャツ (M)", "action": "支給", "change_amount": 2, "comment": ""},
+                    # ガラス道具履歴
+                    {"date": "2026/06/14", "staff_name": "前田茂樹", "item_name": "洗剤容器", "action": "支給", "change_amount": 1, "comment": ""},
+                    {"date": "2026/06/16", "staff_name": "今阪唯木", "item_name": "チャンネル20インチ", "action": "支給", "change_amount": 1, "comment": ""},
+                    {"date": "2026/06/19", "staff_name": "小原眞和", "item_name": "チャンネル20インチ", "action": "支給", "change_amount": 1, "comment": ""},
+                    {"date": "2026/06/19", "staff_name": "小原眞和", "item_name": "ハンドル", "action": "支給", "change_amount": 1, "comment": ""},
+                    {"date": "2026/06/20", "staff_name": "森建一", "item_name": "洗剤容器", "action": "支給", "change_amount": 1, "comment": ""},
+                    {"date": "2026/07/08", "staff_name": "今阪唯木", "item_name": "シャンプーカバー", "action": "支給", "change_amount": 1, "comment": ""},
+                    {"date": "2026/07/09", "staff_name": "中嶋秀信", "item_name": "ヘルメット", "action": "支給", "change_amount": 1, "comment": ""},
+                    {"date": "2026/07/11", "staff_name": "森建一", "item_name": "ハンドル", "action": "支給", "change_amount": 1, "comment": ""},
+                    {"date": "2026/07/12", "staff_name": "澤田哲紀", "item_name": "腰袋", "action": "支給", "change_amount": 1, "comment": ""},
+                    {"date": "2026/07/14", "staff_name": "竹村悟史", "item_name": "シャンプーカバー", "action": "支給", "change_amount": 1, "comment": ""}
+                ]
+                supabase.table("equip_history").insert(history_data).execute()
+
+            st.success("スプレッドシートの完全同期が完了しました！履歴と現在庫をご確認ください。")
+            time.sleep(2)
+            st.rerun()
