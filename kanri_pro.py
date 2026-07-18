@@ -84,10 +84,17 @@ th { background-color: #f8fafc; padding: 12px; text-align: left; border-bottom: 
 td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
 tr:hover { background-color: #f1f5f9; }
 
-/* A4印刷用の完璧なレイアウトCSS */
+/* 🌟 A4印刷用の完璧なレイアウトCSS (不要なタイトルやチェックボックスを全消去) */
 @media print { 
     @page { size: A4 portrait; margin: 10mm; } 
-    .no-print, section[data-testid="stSidebar"], header, div[data-testid="stRadio"], button { display: none !important; } 
+    /* 余計なものを根こそぎ非表示にする */
+    .no-print, 
+    section[data-testid="stSidebar"], 
+    header[data-testid="stHeader"], 
+    div[data-testid="stRadio"], 
+    div[data-testid="stCheckbox"], 
+    button { display: none !important; } 
+    
     html, body, .main, .block-container { background: #fff !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; } 
     
     #print-area { width: 100%; color: #000; }
@@ -122,7 +129,8 @@ for p in PAGES:
         st.session_state.page = p
         st.rerun()
 
-st.markdown("<h3 style='color: #1e293b; margin-top: -20px; margin-bottom: 10px; font-weight: 700;'>🏢 備品・制服 貸出管理</h3>", unsafe_allow_html=True)
+# 印刷時に消えるように .no-print クラスで囲む
+st.markdown("<div class='no-print'><h3 style='color: #1e293b; margin-top: -20px; margin-bottom: 10px; font-weight: 700;'>🏢 備品・制服 貸出管理</h3></div>", unsafe_allow_html=True)
 st.radio("メニュー", PAGES, horizontal=True, label_visibility="collapsed", key="page")
 
 # ==========================================
@@ -147,11 +155,14 @@ if st.session_state.page == "📝 入力":
         df_u = get_inventory("制服")
         if not df_u.empty:
             base_types = sorted(list(set([name.split(" ")[0] for name in df_u['name'].tolist()])))
-            selected_base = st.selectbox("種類", base_types, key="base_u")
+            with st.expander("👔 種類を選択"):
+                selected_base = st.radio("種類", base_types, label_visibility="collapsed", key="base_u")
+                
             size_options = [n for n in df_u['name'].tolist() if n.startswith(selected_base)]
             item_u = st.radio("サイズ", size_options, horizontal=True, key="item_u")
         else:
-            item_u = st.selectbox("品名を選択", ["データなし"], key="item_u_empty")
+            with st.expander("👔 品名を選択"):
+                item_u = st.radio("品名", ["データなし"], label_visibility="collapsed", key="item_u_empty")
             
         qty_u = st.number_input("数量", min_value=1, value=1, step=1, key="qty_u")
         comment_u = st.text_input("備考", key="comment_u")
@@ -176,7 +187,8 @@ if st.session_state.page == "📝 入力":
         
         df_g = get_inventory("ガラス道具")
         item_list_g = df_g['name'].tolist() if not df_g.empty else []
-        item_g = st.selectbox("品名", item_list_g, key="item_g")
+        with st.expander("🪟 品名を選択"):
+            item_g = st.radio("品名", item_list_g, label_visibility="collapsed", key="item_g")
         
         qty_g = st.number_input("数量", min_value=1, value=1, step=1, key="qty_g")
         comment_g = st.text_input("備考", key="comment_g")
@@ -212,9 +224,11 @@ elif st.session_state.page == "📦 在庫一覧":
             return [''] * len(row)
         
         if print_mode:
-            st.markdown("<div class='no-print' style='background: #d1e7dd; padding: 15px; border-radius: 8px; color: #0f5132; margin-bottom: 20px;'>Ctrl+P (スマホの場合は共有ボタン) から印刷を実行してください。<br>※左側の不要な番号は消去され、A4にピッタリ収まります。</div>", unsafe_allow_html=True)
+            st.markdown("<div class='no-print' style='background: #d1e7dd; padding: 15px; border-radius: 8px; color: #0f5132; margin-bottom: 20px;'>Ctrl+P (スマホの場合は共有ボタン) から印刷を実行してください。<br>※上部のタイトル等は印刷時に自動で消去されます。</div>", unsafe_allow_html=True)
             
-            # --- ここから完全カスタムの印刷用HTML生成（不要な番号を完全に消す） ---
+            # 印刷日時の取得
+            today_str = datetime.now().strftime("%Y年%m月%d日")
+            
             if category == "ガラス道具":
                 # ガラス道具: 1列で文字を拡大
                 html_table = "<table><thead><tr><th>商品</th><th>在庫数</th><th>最終確認</th></tr></thead><tbody>"
@@ -223,12 +237,14 @@ elif st.session_state.page == "📦 在庫一覧":
                     is_alert_row = row['在庫数'] <= original_row['threshold']
                     bg = "background-color: #fee2e2; font-weight: bold;" if is_alert_row else ""
                     last_check = row['最終確認'] if pd.notna(row['最終確認']) else ""
-                    html_table += f"<tr style='{bg}'><td>{row['商品']}</td><td>{row['在庫数']}</td><td>{last_check}</td></tr>"
+                    html_table += f"<tr style='{bg}'><td>{row['商品']}</td><td style='text-align:center;'>{row['在庫数']}</td><td>{last_check}</td></tr>"
                 html_table += "</tbody></table>"
                 
                 print_html = f"""
                 <div id="print-area" class="print-glass">
-                    <h3 style="margin-bottom: 5px; font-size: 18pt;">{category} 現在庫一覧</h3>
+                    <h3 style="margin-bottom: 10px; font-size: 16pt; border-bottom: 2px solid #334155; padding-bottom: 5px;">
+                        {category} 現在庫一覧 <span style="font-size: 12pt; font-weight: normal; margin-left: 20px;">{today_str}</span>
+                    </h3>
                     {html_table}
                 </div>
                 """
@@ -253,7 +269,9 @@ elif st.session_state.page == "📦 在庫一覧":
                 
                 print_html = f"""
                 <div id="print-area" class="print-uniform">
-                    <h3 style="margin-bottom: 5px; font-size: 14pt;">{category} 現在庫一覧</h3>
+                    <h3 style="margin-bottom: 10px; font-size: 16pt; border-bottom: 2px solid #334155; padding-bottom: 5px;">
+                        {category} 現在庫一覧 <span style="font-size: 12pt; font-weight: normal; margin-left: 20px;">{today_str}</span>
+                    </h3>
                     <div class="masonry-layout">
                         {tables_html}
                     </div>
@@ -262,11 +280,10 @@ elif st.session_state.page == "📦 在庫一覧":
                 st.markdown(print_html, unsafe_allow_html=True)
             
         else:
-            # 通常モード（スマホ・PC画面用）
             st.table(display_df.style.hide(axis="index").apply(highlight_alert, axis=1))
         
-        # LINE発注依頼
         if is_alert and not alerts.empty:
+            st.markdown("<div class='no-print'>", unsafe_allow_html=True)
             st.markdown("---")
             share_text = "\\n".join([f"「{row['name']}」の在庫が不足しています。" for _, row in alerts.iterrows()])
             btn_html = f"""
@@ -276,6 +293,7 @@ elif st.session_state.page == "📦 在庫一覧":
             </button>
             """
             components.html(btn_html, height=60)
+            st.markdown("</div>", unsafe_allow_html=True)
     else:
         st.info("データがありません。")
 
@@ -292,7 +310,10 @@ elif st.session_state.page == "📚 履歴":
                 df_cat = get_inventory(cat)
                 if not df_cat.empty:
                     df = df_hist[df_hist['item_name'].isin(df_cat['name'].tolist())]
-                    staff_s = st.selectbox(f"👤 氏名で絞り込み ({cat})", ["すべて", "会社購入"] + STAFF_LIST, key=f"hist_staff_{cat}")
+                    
+                    with st.expander(f"👤 氏名で絞り込み ({cat})"):
+                        staff_s = st.radio(f"氏名 ({cat})", ["すべて", "会社購入"] + STAFF_LIST, label_visibility="collapsed", key=f"hist_staff_{cat}")
+                        
                     if staff_s != "すべて": 
                         df = df[df['staff_name'] == staff_s]
                     
@@ -318,7 +339,7 @@ elif st.session_state.page == "⚙️ 管理":
             st.markdown("<div class='card-box'>", unsafe_allow_html=True)
             st.markdown("##### ▶ 新規アイテムの追加")
             n_name = st.text_input("品名", key="new_item_name")
-            n_cat = st.selectbox("カテゴリ", ["制服", "ガラス道具"], key="new_item_cat")
+            n_cat = st.radio("カテゴリ", ["制服", "ガラス道具"], horizontal=True, key="new_item_cat")
             n_stock = st.number_input("現在庫", value=0, step=1, key="new_item_stock")
             n_thresh = st.number_input("アラート基準", value=2 if n_cat=="制服" else 4, step=1, key="new_item_thresh")
             if st.button("追加する", type="primary", key="btn_add_item"):
@@ -337,7 +358,9 @@ elif st.session_state.page == "⚙️ 管理":
             edit_cat = st.radio("カテゴリ選択", ["制服", "ガラス道具"], key="edit_cat", horizontal=True)
             df_edit = get_inventory(edit_cat)
             if not df_edit.empty:
-                edit_item = st.selectbox("編集するアイテムを選択", df_edit['name'].tolist(), key="edit_item_select")
+                with st.expander("✏️ 編集するアイテムを選択"):
+                    edit_item = st.radio("アイテム", df_edit['name'].tolist(), label_visibility="collapsed", key="edit_item_select")
+                
                 row = df_edit[df_edit['name'] == edit_item].iloc[0]
                 
                 e_stock = st.number_input("現在庫を修正", value=int(row['stock']), step=1, key="edit_item_stock")
@@ -376,7 +399,9 @@ elif st.session_state.page == "⚙️ 管理":
         with col_s_edit:
             st.markdown("<div class='card-box'>", unsafe_allow_html=True)
             st.markdown("##### ▶ スタッフの削除")
-            del_staff = st.selectbox("削除するスタッフを選択", STAFF_LIST, key="del_staff_select")
+            with st.expander("🚨 削除するスタッフを選択"):
+                del_staff = st.radio("スタッフ", STAFF_LIST, label_visibility="collapsed", key="del_staff_select")
+                
             if st.button("🚨 削除する", key="btn_delete_staff"):
                 supabase.table("equip_items").delete().eq("name", del_staff).eq("category", "スタッフ").execute()
                 st.error(f"{del_staff} を削除しました。")
@@ -396,7 +421,9 @@ elif st.session_state.page == "⚙️ 管理":
                 opt = f"[ID:{row['id']}] {row['date']} | {row['staff_name']} | {row['item_name']} | {row['action']} {row['change_amount']}個"
                 options.append(opt)
                 
-            selected_record = st.selectbox("削除する履歴を選択 (直近50件)", options, key="del_hist_select")
+            with st.expander("🗑️ 削除する履歴を選択 (直近50件)"):
+                selected_record = st.radio("履歴", options, label_visibility="collapsed", key="del_hist_select")
+                
             record_id = int(selected_record.split("]")[0].replace("[ID:", ""))
             target_row = df_hist[df_hist['id'] == record_id].iloc[0]
             
