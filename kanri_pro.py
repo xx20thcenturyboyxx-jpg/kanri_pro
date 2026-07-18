@@ -84,14 +84,15 @@ th { background-color: #f8fafc; padding: 12px; text-align: left; border-bottom: 
 td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
 tr:hover { background-color: #f1f5f9; }
 
-/* 印刷用CSS (A4に綺麗に収める) */
+/* A4印刷用 2列レイアウト対応CSS */
 @media print { 
-    @page { size: A4 portrait; margin: 15mm; }
+    @page { size: A4 portrait; margin: 10mm; } /* 余白を狭くして広く使う */
     .no-print, section[data-testid="stSidebar"], header, div[data-testid="stRadio"], button { display: none !important; } 
     html, body, .main, .block-container { background: #fff !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; } 
-    table { border: 1px solid #000; font-size: 11pt; } 
-    th { background-color: #f1f5f9 !important; font-weight: bold; border: 1px solid #000 !important; -webkit-print-color-adjust: exact; }
-    td { border: 1px solid #000 !important; }
+    
+    #print-area table { border: 1px solid #334155; font-size: 10pt; width: 100%; border-collapse: collapse; margin-bottom: 0;} 
+    #print-area th { background-color: #f1f5f9 !important; font-weight: bold; border: 1px solid #334155 !important; -webkit-print-color-adjust: exact; padding: 6px 8px; }
+    #print-area td { border: 1px solid #334155 !important; padding: 6px 8px; }
 }
 </style>
 """
@@ -123,10 +124,8 @@ if st.session_state.page == "📝 入力":
     
     with tab1:
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-        # ID被りを防ぐために key を設定
         action_u = st.radio("区分", ["支給", "補充"], horizontal=True, key="action_u")
         
-        # エクスパンダーで名前選択（キーボード出ない仕様）
         if action_u == "補充":
             st.text_input("👤 補充元", value="会社購入", disabled=True, key="staff_add_u")
             staff_u = "会社購入"
@@ -155,7 +154,6 @@ if st.session_state.page == "📝 入力":
     
     with tab2:
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-        # こちらも専用の key を設定
         action_g = st.radio("区分", ["支給", "補充"], horizontal=True, key="action_g")
         
         if action_g == "補充":
@@ -193,24 +191,45 @@ elif st.session_state.page == "📦 在庫一覧":
         with col2: 
             print_mode = st.checkbox("🖨️ A4印刷モード", key="inv_print")
         
-        # 分類と備考をなくし、A4にスッキリ収まるように列を絞る
         display_df = (alerts if is_alert else df)[['name', 'stock', 'last_checked']]
         display_df.columns = ['商品', '在庫数', '最終確認']
         
         def highlight_alert(row):
-            # df全体からアラート基準値を取得して比較
             original_row = df[df['name'] == row['商品']].iloc[0]
             if row['在庫数'] <= original_row['threshold']:
                 return ['background-color: #fee2e2; color: #991b1b; font-weight: bold;'] * len(row)
             return [''] * len(row)
         
         if print_mode:
-            st.markdown("<div class='no-print' style='background: #d1e7dd; padding: 15px; border-radius: 8px; color: #0f5132; margin-bottom: 20px;'>Ctrl+P (スマホの場合は共有ボタン) から印刷を実行してください。</div>", unsafe_allow_html=True)
-            st.markdown(f"<h3 style='margin-top:20px;'>{category} 現在庫一覧</h3>", unsafe_allow_html=True)
+            st.markdown("<div class='no-print' style='background: #d1e7dd; padding: 15px; border-radius: 8px; color: #0f5132; margin-bottom: 20px;'>Ctrl+P (スマホの場合は共有ボタン) から印刷を実行してください。自動的に2列でA4 1枚に収まります。</div>", unsafe_allow_html=True)
             
-        st.table(display_df.style.hide(axis="index").apply(highlight_alert, axis=1))
+            # 【A4に収めるための2列分割ロジック】
+            # データを半分に割る
+            mid_index = (len(display_df) + 1) // 2
+            df1 = display_df.iloc[:mid_index]
+            df2 = display_df.iloc[mid_index:]
+            
+            # HTMLテーブルに変換
+            html1 = df1.style.hide(axis="index").apply(highlight_alert, axis=1).to_html()
+            html2 = df2.style.hide(axis="index").apply(highlight_alert, axis=1).to_html() if not df2.empty else ""
+            
+            # Flexboxで横並びのレイアウトを作成
+            print_html = f"""
+            <div id="print-area">
+                <h3 style="margin-bottom: 15px;">{category} 現在庫一覧</h3>
+                <div style="display: flex; gap: 20px; align-items: flex-start;">
+                    <div style="flex: 1; width: 50%;">{html1}</div>
+                    <div style="flex: 1; width: 50%;">{html2}</div>
+                </div>
+            </div>
+            """
+            st.markdown(print_html, unsafe_allow_html=True)
+            
+        else:
+            # 通常モード（1列表示）
+            st.table(display_df.style.hide(axis="index").apply(highlight_alert, axis=1))
         
-        # ご要望通りの「「〇〇」の在庫が不足しています。」の文章でシェア
+        # LINE発注依頼
         if is_alert and not alerts.empty:
             st.markdown("---")
             share_text = "\\n".join([f"「{row['name']}」の在庫が不足しています。" for _, row in alerts.iterrows()])
@@ -250,7 +269,7 @@ elif st.session_state.page == "📚 履歴":
             else:
                 st.info("履歴がありません。")
 
-# ----------------- ⚙️ 管理ページ (完全復活) -----------------
+# ----------------- ⚙️ 管理ページ -----------------
 elif st.session_state.page == "⚙️ 管理":
     st.markdown("### ⚙️ 管理")
     tab_master, tab_staff, tab_fix = st.tabs(["📝 アイテムの編集", "👤 スタッフ管理", "🗑️ 履歴の取消"])
