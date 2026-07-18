@@ -28,9 +28,22 @@ def get_inventory(category=None):
         df = df.sort_values(by="name")
     return df
 
+# 初期スタッフデータの読み込み（テーブルを間借りして保存）
+def get_staff_list():
+    res = supabase.table("equip_items").select("name").eq("category", "スタッフ").execute()
+    if not res.data:
+        # 画像から読み取った初期メンバー
+        initial_staff = ["小垣武正", "森建一", "山口徹也", "小原眞和", "中嶋秀彦", "奥山将光", "澤田智紀", "鎌倉健二", "竹村悟史", "赤尾定治", "熊谷豊樹", "武内和寿", "田中裕一", "今阪唯木", "青山幸弘", "吉川智", "林直樹", "前田茂樹", "タワーズ"]
+        insert_data = [{"name": s, "stock": 0, "category": "スタッフ", "threshold": 0, "last_checked": ""} for s in initial_staff]
+        supabase.table("equip_items").insert(insert_data).execute()
+        return initial_staff
+    return [r['name'] for r in res.data]
+
+STAFF_LIST = get_staff_list()
+
 def process_action(staff_name, action, item_name, qty, comment):
     date_str = datetime.now().strftime("%Y/%m/%d")
-    stock_diff = qty if action == "追加" else -qty
+    stock_diff = qty if action == "補充" else -qty
         
     res = supabase.table("equip_items").select("stock").eq("name", item_name).execute()
     if res.data:
@@ -94,7 +107,7 @@ st.markdown(pro_css, unsafe_allow_html=True)
 # ==========================================
 # 4. ヘッダー・ナビゲーション (サイド & 上部 連動)
 # ==========================================
-PAGES = ["📝 入力", "📦 在庫一覧", "👤 個別履歴", "📚 全履歴", "⚙️ 管理"]
+PAGES = ["📝 入力", "📦 在庫一覧", "📚 履歴", "⚙️ 管理"]
 
 if "page" not in st.session_state:
     st.session_state.page = "📝 入力"
@@ -119,29 +132,27 @@ st.radio("メニュー", PAGES, horizontal=True, label_visibility="collapsed", k
 if st.session_state.page == "📝 入力":
     tab1, tab2 = st.tabs(["👕 制服", "🪟 ガラス道具"])
     
-    # --- 制服の入力フォーム（2段階ドロップダウン対応） ---
+    # --- 制服の入力フォーム ---
     with tab1:
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
         st.markdown("<h4 style='color: #1e293b; margin-bottom: 20px; font-weight: 700;'>👕 制服の出入り記録</h4>", unsafe_allow_html=True)
         
-        action_u = st.radio("区分", ["支給", "追加"], horizontal=True, key="action_u")
+        action_u = st.radio("区分", ["支給", "補充"], horizontal=True, key="action_u")
         
         col_u1, col_u2 = st.columns([1, 1])
         with col_u1:
-            if action_u == "追加":
-                staff_u = st.text_input("👤 スタッフ名", value="会社購入", disabled=True, key="staff_u_add")
+            if action_u == "補充":
+                staff_u = st.text_input("👤 補充元", value="会社購入", disabled=True, key="staff_u_add")
             else:
-                staff_u = st.text_input("👤 スタッフ名 (必須)", value="青山", key="staff_u_give")
+                staff_u = st.selectbox("👤 支給するスタッフ", STAFF_LIST, key="staff_u_give")
         
-        # 2段階ドロップダウンのロジック
+        # 2段階ドロップダウン
         df_u = get_inventory("制服")
         if not df_u.empty:
             all_u_names = df_u['name'].tolist()
             base_types = sorted(list(set([name.split(" ")[0] for name in all_u_names])))
-            
             with col_u2:
                 selected_base = st.selectbox("種類を選択", base_types, key="base_u")
-            
             size_options = [name for name in all_u_names if name.startswith(selected_base)]
             item_u = st.selectbox("サイズを選択", size_options, key="item_u")
         else:
@@ -151,13 +162,10 @@ if st.session_state.page == "📝 入力":
         comment_u = st.text_input("備考 (任意)", placeholder="例: サイズ交換、破損など", key="comment_u")
         
         if st.button("この内容で記録する", type="primary", use_container_width=True, key="btn_u"):
-            if action_u == "支給" and not staff_u.strip():
-                st.error("⚠️ スタッフ名を入力してください。")
-            else:
-                process_action(staff_u, action_u, item_u, qty_u, comment_u)
-                st.success(f"✅ {item_u} を{qty_u}個 {action_u}として記録しました！")
-                time.sleep(1)
-                st.rerun()
+            process_action(staff_u, action_u, item_u, qty_u, comment_u)
+            st.success(f"✅ {item_u} を{qty_u}個 {action_u}として記録しました！")
+            time.sleep(1)
+            st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
     # --- ガラス道具の入力フォーム ---
@@ -165,14 +173,14 @@ if st.session_state.page == "📝 入力":
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
         st.markdown("<h4 style='color: #1e293b; margin-bottom: 20px; font-weight: 700;'>🪟 ガラス道具の出入り記録</h4>", unsafe_allow_html=True)
         
-        action_g = st.radio("区分", ["支給", "追加"], horizontal=True, key="action_g")
+        action_g = st.radio("区分", ["支給", "補充"], horizontal=True, key="action_g")
         
         col_g1, col_g2 = st.columns([1, 1])
         with col_g1:
-            if action_g == "追加":
-                staff_g = st.text_input("👤 スタッフ名", value="会社購入", disabled=True, key="staff_g_add")
+            if action_g == "補充":
+                staff_g = st.text_input("👤 補充元", value="会社購入", disabled=True, key="staff_g_add")
             else:
-                staff_g = st.text_input("👤 スタッフ名 (必須)", value="青山", key="staff_g_give")
+                staff_g = st.selectbox("👤 支給するスタッフ", STAFF_LIST, key="staff_g_give")
         
         df_g = get_inventory("ガラス道具")
         item_list_g = df_g['name'].tolist() if not df_g.empty else []
@@ -183,13 +191,10 @@ if st.session_state.page == "📝 入力":
         comment_g = st.text_input("備考 (任意)", key="comment_g")
         
         if st.button("この内容で記録する", type="primary", use_container_width=True, key="btn_g"):
-            if action_g == "支給" and not staff_g.strip():
-                st.error("⚠️ スタッフ名を入力してください。")
-            else:
-                process_action(staff_g, action_g, item_g, qty_g, comment_g)
-                st.success(f"✅ {item_g} を{qty_g}個 {action_g}として記録しました！")
-                time.sleep(1)
-                st.rerun()
+            process_action(staff_g, action_g, item_g, qty_g, comment_g)
+            st.success(f"✅ {item_g} を{qty_g}個 {action_g}として記録しました！")
+            time.sleep(1)
+            st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
 elif st.session_state.page == "📦 在庫一覧":
@@ -201,18 +206,15 @@ elif st.session_state.page == "📦 在庫一覧":
         is_alert_mode = st.checkbox(f"🚨 発注が必要なアイテムのみ表示 ({len(alerts)}件)", value=False)
         display_df = alerts if is_alert_mode else df
         
-        # 必要な列を整理し、表示用の設定を行う
         display_df = display_df[['name', 'stock', 'category', 'last_checked', 'threshold']].copy()
         display_df['備考'] = ""
         display_df.columns = ['商品', '在庫数', '分類', '最終確認', 'アラート基準', '備考']
         
         def highlight_alert(row):
-            # 現在庫が基準以下なら、背景を薄赤・文字を濃い赤・太字にする
             if row['在庫数'] <= row['アラート基準']:
                 return ['background-color: #fee2e2; color: #991b1b; font-weight: 700;'] * len(row)
             return [''] * len(row)
 
-        # アラート基準列は判定に使うが表示からは隠す
         styled_table = display_df.style.hide(axis="index").hide(subset=["アラート基準"], axis="columns").apply(highlight_alert, axis=1)
 
         st.markdown("<div style='margin-top: 15px;'>", unsafe_allow_html=True)
@@ -221,48 +223,36 @@ elif st.session_state.page == "📦 在庫一覧":
     else:
         st.info("データがありません。")
 
-elif st.session_state.page == "👤 個別履歴":
-    st.markdown("### 👤 スタッフ別 支給履歴リスト")
-    st.info("スタッフごとに「いつ・何を・いくつ」支給したかを時系列で確認できます。")
-    
-    res_hist = supabase.table("equip_history").select("*").eq("action", "支給").order("date", desc=True).order("id", desc=True).execute()
-    df_hist = pd.DataFrame(res_hist.data)
-    
-    if not df_hist.empty:
-        staff_list = sorted(list(set(df_hist['staff_name'].tolist())))
-        selected_staff = st.selectbox("検索するスタッフを選択", ["-- 選択してください --"] + staff_list)
-        
-        if selected_staff != "-- 選択してください --":
-            staff_df = df_hist[df_hist['staff_name'] == selected_staff].copy()
-            staff_df = staff_df[['date', 'item_name', 'change_amount', 'comment']]
-            staff_df.columns = ['支給日', '支給アイテム', '数量', '備考']
-            
-            st.markdown(f"<div class='card-box'><h5 style='margin-bottom: 15px;'>{selected_staff} さんの支給履歴（計 {len(staff_df)} 件）</h5>", unsafe_allow_html=True)
-            st.table(staff_df.style.hide(axis="index"))
-            st.markdown("</div>", unsafe_allow_html=True)
-    else:
-        st.warning("支給履歴がまだありません。")
-
-elif st.session_state.page == "📚 全履歴":
-    st.markdown("### 📚 すべての出入り履歴")
+elif st.session_state.page == "📚 履歴":
+    st.markdown("### 📚 履歴 (一覧・検索)")
     res_hist = supabase.table("equip_history").select("*").order("date", desc=True).order("id", desc=True).execute()
     df_hist = pd.DataFrame(res_hist.data)
     
     if not df_hist.empty:
-        search_word = st.text_input("🔍 スタッフ名・品名で絞り込み")
-        if search_word:
-            df_hist = df_hist[df_hist['staff_name'].str.contains(search_word, na=False) | df_hist['item_name'].str.contains(search_word, na=False)]
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            # 検索用スタッフリスト（会社購入も含める）
+            search_staff = st.selectbox("👤 氏名で絞り込み", ["すべて", "会社購入"] + STAFF_LIST)
+        with col_s2:
+            search_item = st.text_input("🔍 品名で絞り込み (一部入力でもOK)")
             
-        display_hist = df_hist[['date', 'staff_name', 'item_name', 'action', 'change_amount', 'comment']]
+        filtered = df_hist.copy()
+        if search_staff != "すべて":
+            filtered = filtered[filtered['staff_name'] == search_staff]
+        if search_item:
+            filtered = filtered[filtered['item_name'].str.contains(search_item, na=False)]
+            
+        display_hist = filtered[['date', 'staff_name', 'item_name', 'action', 'change_amount', 'comment']]
         display_hist.columns = ['日付', '氏名', '品名', '区分', '数量', '備考']
         
+        st.markdown(f"<div style='margin-top: 10px; margin-bottom: 5px; font-size: 14px; color: #475569;'>検索結果: {len(filtered)} 件</div>", unsafe_allow_html=True)
         st.table(display_hist.style.hide(axis="index"))
     else:
         st.info("履歴がありません。")
 
 elif st.session_state.page == "⚙️ 管理":
     st.markdown("### ⚙️ 管理・修正機能")
-    tab_master, tab_fix = st.tabs(["📝 アイテムの編集・追加", "🗑️ 履歴の削除(取消)"])
+    tab_master, tab_staff, tab_fix = st.tabs(["📝 アイテムの編集", "👤 スタッフ管理", "🗑️ 履歴の取消"])
     
     with tab_master:
         st.info("💡 アイテムの追加、および既存のアイテムの「在庫数」「アラート基準」を変更・削除できます。")
@@ -310,6 +300,32 @@ elif st.session_state.page == "⚙️ 管理":
                         st.error("削除しました。")
                         time.sleep(1)
                         st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    with tab_staff:
+        st.info("💡 アプリで選択できるスタッフの名前を追加・削除できます。")
+        col_s_add, col_s_edit = st.columns(2)
+        with col_s_add:
+            st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+            st.markdown("##### ▶ スタッフの追加")
+            new_staff = st.text_input("追加するスタッフ名")
+            if st.button("スタッフを追加", type="primary"):
+                if new_staff:
+                    supabase.table("equip_items").insert({"name": new_staff, "category": "スタッフ", "stock": 0, "threshold": 0, "last_checked": ""}).execute()
+                    st.success(f"{new_staff} を追加しました！")
+                    time.sleep(1)
+                    st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with col_s_edit:
+            st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+            st.markdown("##### ▶ スタッフの削除")
+            del_staff = st.selectbox("削除するスタッフを選択", STAFF_LIST)
+            if st.button("🚨 削除する"):
+                supabase.table("equip_items").delete().eq("name", del_staff).eq("category", "スタッフ").execute()
+                st.error(f"{del_staff} を削除しました。")
+                time.sleep(1)
+                st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
                             
     with tab_fix:
