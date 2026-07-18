@@ -84,15 +84,26 @@ th { background-color: #f8fafc; padding: 12px; text-align: left; border-bottom: 
 td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
 tr:hover { background-color: #f1f5f9; }
 
-/* A4印刷用 2列レイアウト対応CSS */
+/* A4印刷用の完璧なレイアウトCSS */
 @media print { 
-    @page { size: A4 portrait; margin: 10mm; } /* 余白を狭くして広く使う */
+    @page { size: A4 portrait; margin: 10mm; } 
     .no-print, section[data-testid="stSidebar"], header, div[data-testid="stRadio"], button { display: none !important; } 
     html, body, .main, .block-container { background: #fff !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; } 
     
-    #print-area table { border: 1px solid #334155; font-size: 10pt; width: 100%; border-collapse: collapse; margin-bottom: 0;} 
-    #print-area th { background-color: #f1f5f9 !important; font-weight: bold; border: 1px solid #334155 !important; -webkit-print-color-adjust: exact; padding: 6px 8px; }
-    #print-area td { border: 1px solid #334155 !important; padding: 6px 8px; }
+    #print-area { width: 100%; color: #000; }
+    #print-area table { border: 1px solid #334155; width: 100%; border-collapse: collapse; } 
+    #print-area th { background-color: #f1f5f9 !important; font-weight: bold; border: 1px solid #334155 !important; -webkit-print-color-adjust: exact; color: #000; }
+    #print-area td { border: 1px solid #334155 !important; }
+    
+    /* ガラス道具用（1列・文字拡大） */
+    .print-glass table { font-size: 14pt; margin-top: 10px; }
+    .print-glass th, .print-glass td { padding: 12px; }
+    
+    /* 制服等用（種類分け・2列レイアウト） */
+    .print-uniform { font-size: 10pt; }
+    .masonry-layout { column-count: 2; column-gap: 20px; margin-top: 10px; }
+    .group-wrapper { break-inside: avoid; page-break-inside: avoid; margin-bottom: 15px; }
+    .print-uniform th, .print-uniform td { padding: 4px 6px; }
 }
 </style>
 """
@@ -201,32 +212,57 @@ elif st.session_state.page == "📦 在庫一覧":
             return [''] * len(row)
         
         if print_mode:
-            st.markdown("<div class='no-print' style='background: #d1e7dd; padding: 15px; border-radius: 8px; color: #0f5132; margin-bottom: 20px;'>Ctrl+P (スマホの場合は共有ボタン) から印刷を実行してください。自動的に2列でA4 1枚に収まります。</div>", unsafe_allow_html=True)
+            st.markdown("<div class='no-print' style='background: #d1e7dd; padding: 15px; border-radius: 8px; color: #0f5132; margin-bottom: 20px;'>Ctrl+P (スマホの場合は共有ボタン) から印刷を実行してください。<br>※左側の不要な番号は消去され、A4にピッタリ収まります。</div>", unsafe_allow_html=True)
             
-            # 【A4に収めるための2列分割ロジック】
-            # データを半分に割る
-            mid_index = (len(display_df) + 1) // 2
-            df1 = display_df.iloc[:mid_index]
-            df2 = display_df.iloc[mid_index:]
-            
-            # HTMLテーブルに変換
-            html1 = df1.style.hide(axis="index").apply(highlight_alert, axis=1).to_html()
-            html2 = df2.style.hide(axis="index").apply(highlight_alert, axis=1).to_html() if not df2.empty else ""
-            
-            # Flexboxで横並びのレイアウトを作成
-            print_html = f"""
-            <div id="print-area">
-                <h3 style="margin-bottom: 15px;">{category} 現在庫一覧</h3>
-                <div style="display: flex; gap: 20px; align-items: flex-start;">
-                    <div style="flex: 1; width: 50%;">{html1}</div>
-                    <div style="flex: 1; width: 50%;">{html2}</div>
+            # --- ここから完全カスタムの印刷用HTML生成（不要な番号を完全に消す） ---
+            if category == "ガラス道具":
+                # ガラス道具: 1列で文字を拡大
+                html_table = "<table><thead><tr><th>商品</th><th>在庫数</th><th>最終確認</th></tr></thead><tbody>"
+                for _, row in display_df.iterrows():
+                    original_row = df[df['name'] == row['商品']].iloc[0]
+                    is_alert_row = row['在庫数'] <= original_row['threshold']
+                    bg = "background-color: #fee2e2; font-weight: bold;" if is_alert_row else ""
+                    last_check = row['最終確認'] if pd.notna(row['最終確認']) else ""
+                    html_table += f"<tr style='{bg}'><td>{row['商品']}</td><td>{row['在庫数']}</td><td>{last_check}</td></tr>"
+                html_table += "</tbody></table>"
+                
+                print_html = f"""
+                <div id="print-area" class="print-glass">
+                    <h3 style="margin-bottom: 5px; font-size: 18pt;">{category} 現在庫一覧</h3>
+                    {html_table}
                 </div>
-            </div>
-            """
-            st.markdown(print_html, unsafe_allow_html=True)
+                """
+                st.markdown(print_html, unsafe_allow_html=True)
+                
+            else:
+                # 制服: 種類ごとに分けて2列で表示
+                display_df['種類'] = display_df['商品'].apply(lambda x: x.split(" ")[0])
+                grouped = display_df.groupby('種類')
+                
+                tables_html = ""
+                for base, group_df in grouped:
+                    tables_html += f"<div class='group-wrapper'><h4 style='margin: 0 0 5px 0; padding-bottom: 3px; border-bottom: 2px solid #334155; color: #1e293b;'>{base}</h4>"
+                    tables_html += "<table><thead><tr><th>商品</th><th>在庫</th><th>確認日</th></tr></thead><tbody>"
+                    for _, row in group_df.iterrows():
+                        original_row = df[df['name'] == row['商品']].iloc[0]
+                        is_alert_row = row['在庫数'] <= original_row['threshold']
+                        bg = "background-color: #fee2e2; font-weight: bold;" if is_alert_row else ""
+                        last_check = row['最終確認'] if pd.notna(row['最終確認']) else ""
+                        tables_html += f"<tr style='{bg}'><td>{row['商品']}</td><td style='text-align: center;'>{row['在庫数']}</td><td>{last_check}</td></tr>"
+                    tables_html += "</tbody></table></div>"
+                
+                print_html = f"""
+                <div id="print-area" class="print-uniform">
+                    <h3 style="margin-bottom: 5px; font-size: 14pt;">{category} 現在庫一覧</h3>
+                    <div class="masonry-layout">
+                        {tables_html}
+                    </div>
+                </div>
+                """
+                st.markdown(print_html, unsafe_allow_html=True)
             
         else:
-            # 通常モード（1列表示）
+            # 通常モード（スマホ・PC画面用）
             st.table(display_df.style.hide(axis="index").apply(highlight_alert, axis=1))
         
         # LINE発注依頼
