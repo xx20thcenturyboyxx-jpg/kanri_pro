@@ -62,7 +62,7 @@ def delete_history_record(record_id, item_name, action, qty):
         new_stock = current_stock + stock_diff
         supabase.table("equip_items").update({"stock": new_stock}).eq("name", item_name).execute()
 
-# 🌟【新開発】選んだ瞬間に自動で閉じるスマート選択メニュー（キーボード対策の決定版）
+# 🌟 選んだ瞬間に自動で閉じるスマート選択メニュー（ドロップダウンだった場所専用）
 def auto_close_selector(label, options, key, horizontal=True):
     if not options:
         options = ["データなし"]
@@ -71,19 +71,16 @@ def auto_close_selector(label, options, key, horizontal=True):
     if open_key not in st.session_state:
         st.session_state[open_key] = False
         
-    # 選択肢が変わった場合（種類を変えた時のサイズリセットなど）の対応
     if key not in st.session_state or st.session_state[key] not in options:
         st.session_state[key] = options[0]
 
-    # 開閉用ボタン（現在選ばれているものを表示）
     btn_label = f"{label} 【 {st.session_state[key]} 】 ▼"
     if st.button(btn_label, key=f"btn_{key}", use_container_width=True):
         st.session_state[open_key] = not st.session_state[open_key]
         
-    # ボタンが押されて開いている時だけラジオボタンを表示
     if st.session_state[open_key]:
         def on_change():
-            st.session_state[open_key] = False # 選んだ瞬間に閉じるフラグを立てる
+            st.session_state[open_key] = False
             
         st.radio("選択", options, key=key, on_change=on_change, label_visibility="collapsed", horizontal=horizontal)
         
@@ -104,7 +101,7 @@ div[data-testid="stRadio"] > div[role="radiogroup"] { display: flex; flex-wrap: 
 div[data-testid="stRadio"] label { background-color: transparent; padding: 10px 16px !important; border-radius: 8px; cursor: pointer; transition: all 0.2s; border: none; }
 div[data-testid="stRadio"] label[data-checked="true"] { background-color: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #0f172a; font-weight: 700; }
 
-/* 選択メニュー用ボタンのデザイン */
+/* アコーディオン用ボタンのデザイン */
 button[data-testid="baseButton-secondary"] { border: 1px solid #cbd5e1; background-color: #f8fafc; color: #0f172a; font-weight: bold; box-shadow: none; border-radius: 8px; padding: 12px; }
 button[data-testid="baseButton-secondary"]:hover { border-color: #3b82f6; background-color: #eff6ff; }
 
@@ -130,10 +127,10 @@ td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
     .print-glass th, .print-glass td { padding: 8px; }
     
     /* 制服等用（極限まで詰める） */
-    .print-uniform { font-size: 8.5pt; } /* 文字を少し小さく */
+    .print-uniform { font-size: 8.5pt; } 
     .masonry-layout { column-count: 2; column-gap: 15px; margin-top: 5px; }
-    .group-wrapper { break-inside: avoid; page-break-inside: avoid; margin-bottom: 6px; } /* 下の隙間を削る */
-    .print-uniform th, .print-uniform td { padding: 2px 4px !important; } /* セル内の余白を極小に */
+    .group-wrapper { break-inside: avoid; page-break-inside: avoid; margin-bottom: 6px; } 
+    .print-uniform th, .print-uniform td { padding: 2px 4px !important; } 
     h3 { font-size: 14pt; margin: 0 0 5px 0; padding-bottom: 2px; border-bottom: 2px solid #334155; }
     h4 { margin: 0 0 2px 0; font-size: 9pt; color: #1e293b; }
 }
@@ -173,20 +170,20 @@ if st.session_state.page == "📝 入力":
             st.text_input("👤 補充元", value="会社購入", disabled=True, key="staff_add_u")
             staff_u = "会社購入"
         else:
-            # 🌟 自動で閉じるスマートメニュー
+            # 元ドロップダウン：アコーディオン自動閉じ
             staff_u = auto_close_selector("👤 支給するスタッフ", STAFF_LIST, "staff_give_u")
         
         df_u = get_inventory("制服")
         if not df_u.empty:
             base_types = sorted(list(set([name.split(" ")[0] for name in df_u['name'].tolist()])))
-            # 🌟 自動で閉じるスマートメニュー
+            # 元ドロップダウン：アコーディオン自動閉じ
             selected_base = auto_close_selector("👔 種類", base_types, "base_u")
             
             size_options = [n for n in df_u['name'].tolist() if n.startswith(selected_base)]
-            # 🌟 自動で閉じるスマートメニュー
-            item_u = auto_close_selector("📏 サイズ", size_options, "item_u")
+            # 🌟 【復活】ここは押しやすいラジオボタンのまま！
+            item_u = st.radio("📏 サイズを選択", size_options, horizontal=True, key="item_u")
         else:
-            item_u = auto_close_selector("👔 品名", ["データなし"], "item_u_empty")
+            item_u = st.selectbox("品名を選択", ["データなし"], key="item_u_empty")
             
         qty_u = st.number_input("数量", min_value=1, value=1, step=1, key="qty_u")
         comment_u = st.text_input("備考", key="comment_u")
@@ -206,10 +203,12 @@ if st.session_state.page == "📝 入力":
             st.text_input("👤 補充元", value="会社購入", disabled=True, key="staff_add_g")
             staff_g = "会社購入"
         else:
+            # 元ドロップダウン：アコーディオン自動閉じ
             staff_g = auto_close_selector("👤 支給するスタッフ", STAFF_LIST, "staff_give_g")
         
         df_g = get_inventory("ガラス道具")
         item_list_g = df_g['name'].tolist() if not df_g.empty else []
+        # 元ドロップダウン：アコーディオン自動閉じ
         item_g = auto_close_selector("🪟 品名", item_list_g, "item_g")
         
         qty_g = st.number_input("数量", min_value=1, value=1, step=1, key="qty_g")
@@ -326,6 +325,7 @@ elif st.session_state.page == "📚 履歴":
                 if not df_cat.empty:
                     df = df_hist[df_hist['item_name'].isin(df_cat['name'].tolist())]
                     
+                    # 元ドロップダウン：アコーディオン自動閉じ
                     staff_s = auto_close_selector(f"👤 氏名で絞り込み ({cat})", ["すべて", "会社購入"] + STAFF_LIST, f"hist_staff_{cat}")
                         
                     if staff_s != "すべて": 
@@ -353,7 +353,7 @@ elif st.session_state.page == "⚙️ 管理":
             st.markdown("<div class='card-box'>", unsafe_allow_html=True)
             st.markdown("##### ▶ 新規アイテムの追加")
             n_name = st.text_input("品名", key="new_item_name")
-            n_cat = st.radio("カテゴリ", ["制服", "ガラス道具"], horizontal=True, key="new_item_cat")
+            n_cat = st.selectbox("カテゴリ", ["制服", "ガラス道具"], key="new_item_cat")
             n_stock = st.number_input("現在庫", value=0, step=1, key="new_item_stock")
             n_thresh = st.number_input("アラート基準", value=2 if n_cat=="制服" else 4, step=1, key="new_item_thresh")
             if st.button("追加する", type="primary", key="btn_add_item"):
@@ -372,6 +372,7 @@ elif st.session_state.page == "⚙️ 管理":
             edit_cat = st.radio("カテゴリ選択", ["制服", "ガラス道具"], key="edit_cat", horizontal=True)
             df_edit = get_inventory(edit_cat)
             if not df_edit.empty:
+                # 元ドロップダウン：アコーディオン自動閉じ
                 edit_item = auto_close_selector("✏️ 編集するアイテム", df_edit['name'].tolist(), "edit_item_select")
                 row = df_edit[df_edit['name'] == edit_item].iloc[0]
                 
@@ -411,6 +412,7 @@ elif st.session_state.page == "⚙️ 管理":
         with col_s_edit:
             st.markdown("<div class='card-box'>", unsafe_allow_html=True)
             st.markdown("##### ▶ スタッフの削除")
+            # 元ドロップダウン：アコーディオン自動閉じ
             del_staff = auto_close_selector("🚨 削除するスタッフ", STAFF_LIST, "del_staff_select")
                 
             if st.button("🚨 削除する", key="btn_delete_staff"):
@@ -432,7 +434,7 @@ elif st.session_state.page == "⚙️ 管理":
                 opt = f"[ID:{row['id']}] {row['date']} | {row['staff_name']} | {row['item_name']} | {row['action']} {row['change_amount']}個"
                 options.append(opt)
                 
-            # 履歴など文字が長いものは縦並び(horizontal=False)にする
+            # 元ドロップダウン：アコーディオン自動閉じ（長いので縦並び）
             selected_record = auto_close_selector("🗑️ 削除する履歴 (直近50件)", options, "del_hist_select", horizontal=False)
                 
             record_id = int(selected_record.split("]")[0].replace("[ID:", ""))
