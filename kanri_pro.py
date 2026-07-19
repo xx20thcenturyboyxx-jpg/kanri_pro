@@ -109,31 +109,45 @@ html, body, [class*="css"] {
 }
 .block-container { padding-top: 2rem !important; }
 
-div[data-testid="stRadio"] > div[role="radiogroup"] { 
-    display: inline-flex; 
-    flex-wrap: wrap; 
-    gap: 4px; 
-    background: #e2e8f0; 
-    padding: 6px; 
-    border-radius: 999px;
-    margin-bottom: 24px; 
+/* 🌟 右上の「Fork」や「GitHubアイコン」などの不要メニューを完全に消去 */
+header[data-testid="stHeader"],
+.stDeployButton,
+#MainMenu {
+    display: none !important;
 }
+
+/* 🌟 ラジオボタンの「巨大なグレーの塊」をなくし、スッキリさせる */
+div[data-testid="stRadio"] > div[role="radiogroup"] { 
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 8px; 
+    background: transparent !important; 
+    padding: 0 !important; 
+    margin-bottom: 16px; 
+}
+
+/* 🌟 個別の選択肢を綺麗な独立したボタンに統一 */
 div[data-testid="stRadio"] label { 
-    background-color: transparent; 
-    padding: 8px 20px !important; 
-    border-radius: 999px; 
+    background-color: #ffffff; 
+    border: 1px solid #cbd5e1;
+    padding: 10px 16px !important; 
+    border-radius: 8px !important; 
     cursor: pointer; 
     transition: all 0.2s ease; 
-    border: none; 
+    margin: 0 !important;
+    flex: 1 1 auto;
+    min-width: 80px;
+    justify-content: center;
 }
 div[data-testid="stRadio"] label[data-checked="true"] { 
-    background-color: #ffffff; 
-    box-shadow: 0 2px 4px rgba(0,0,0,0.08); 
-    color: #0f172a; 
-    font-weight: 700; 
+    background-color: #eff6ff; 
+    border-color: #3b82f6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+    color: #1d4ed8; 
 }
-div[data-testid="stRadio"] label p { font-size: 14px !important; }
+div[data-testid="stRadio"] label p { font-size: 14px !important; font-weight: 600; }
 
+/* プライマリーボタン（送信・記録） */
 button[data-testid="baseButton-primary"] {
     background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
     color: #ffffff !important;
@@ -151,6 +165,7 @@ button[data-testid="baseButton-primary"]:hover {
     background: linear-gradient(180deg, #334155 0%, #1e293b 100%) !important;
 }
 
+/* セカンダリーボタン（アコーディオン） */
 button[data-testid="baseButton-secondary"] { 
     background-color: #ffffff !important; 
     border: 1px solid #cbd5e1 !important; 
@@ -175,15 +190,7 @@ button[data-testid="baseButton-secondary"] p {
     width: 100% !important;
 }
 
-.card-box { 
-    background: #ffffff; 
-    border-radius: 16px; 
-    padding: 24px; 
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.025); 
-    border: 1px solid #f1f5f9; 
-    margin-bottom: 20px; 
-}
-
+/* テーブル（表） */
 table { 
     width: 100%; 
     border-collapse: separate; 
@@ -264,62 +271,60 @@ if st.session_state.page == "入力":
     tab1, tab2 = st.tabs(["制服", "ガラス道具"])
     
     with tab1:
-        st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-        action_u = st.radio("区分", ["支給", "補充"], horizontal=True, key="action_u")
-        
-        if action_u == "補充":
-            st.text_input("補充元", value="会社購入", disabled=True, key="staff_add_u")
-            staff_u = "会社購入"
-        else:
-            staff_u = auto_close_selector("スタッフ", STAFF_LIST, "staff_give_u")
-        
-        df_u = get_inventory("制服")
-        if not df_u.empty:
-            base_types = sorted(list(set([name.split(" ")[0] for name in df_u['name'].tolist()])))
-            selected_base = auto_close_selector("種類", base_types, "base_u")
+        with st.container(border=True):
+            action_u = st.radio("区分", ["支給", "補充"], horizontal=True, key="action_u")
             
-            size_options = [n for n in df_u['name'].tolist() if n.startswith(selected_base)]
+            if action_u == "補充":
+                st.text_input("補充元", value="会社購入", disabled=True, key="staff_add_u")
+                staff_u = "会社購入"
+            else:
+                staff_u = auto_close_selector("スタッフ", STAFF_LIST, "staff_give_u")
             
-            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-            item_u = st.radio("サイズを選択", size_options, horizontal=True, key="item_u")
-        else:
-            item_u = st.selectbox("品名を選択", ["データなし"], key="item_u_empty")
+            df_u = get_inventory("制服")
+            if not df_u.empty:
+                base_types = sorted(list(set([name.split(" ")[0] for name in df_u['name'].tolist()])))
+                selected_base = auto_close_selector("種類", base_types, "base_u")
+                
+                size_options = [n for n in df_u['name'].tolist() if n.startswith(selected_base)]
+                
+                st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                item_u = st.radio("サイズを選択", size_options, horizontal=True, key="item_u")
+            else:
+                item_u = st.selectbox("品名を選択", ["データなし"], key="item_u_empty")
+                
+            qty_u = st.number_input("数量", min_value=1, value=1, step=1, key="qty_u")
+            comment_u = st.text_input("備考", key="comment_u")
             
-        qty_u = st.number_input("数量", min_value=1, value=1, step=1, key="qty_u")
-        comment_u = st.text_input("備考", key="comment_u")
-        
-        st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-        if st.button("この内容で記録する", type="primary", use_container_width=True, key="btn_u"):
-            process_action(staff_u, action_u, item_u, qty_u, comment_u)
-            st.success("記録が完了しました。")
-            time.sleep(0.5)
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+            if st.button("この内容で記録する", type="primary", use_container_width=True, key="btn_u"):
+                process_action(staff_u, action_u, item_u, qty_u, comment_u)
+                st.success("記録が完了しました。")
+                time.sleep(0.5)
+                st.rerun()
     
     with tab2:
-        st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-        action_g = st.radio("区分", ["支給", "補充"], horizontal=True, key="action_g")
-        
-        if action_g == "補充":
-            st.text_input("補充元", value="会社購入", disabled=True, key="staff_add_g")
-            staff_g = "会社購入"
-        else:
-            staff_g = auto_close_selector("スタッフ", STAFF_LIST, "staff_give_g")
-        
-        df_g = get_inventory("ガラス道具")
-        item_list_g = df_g['name'].tolist() if not df_g.empty else []
-        item_g = auto_close_selector("品名", item_list_g, "item_g")
-        
-        qty_g = st.number_input("数量", min_value=1, value=1, step=1, key="qty_g")
-        comment_g = st.text_input("備考", key="comment_g")
-        
-        st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-        if st.button("この内容で記録する", type="primary", use_container_width=True, key="btn_g"):
-            process_action(staff_g, action_g, item_g, qty_g, comment_g)
-            st.success("記録が完了しました。")
-            time.sleep(0.5)
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(border=True):
+            action_g = st.radio("区分", ["支給", "補充"], horizontal=True, key="action_g")
+            
+            if action_g == "補充":
+                st.text_input("補充元", value="会社購入", disabled=True, key="staff_add_g")
+                staff_g = "会社購入"
+            else:
+                staff_g = auto_close_selector("スタッフ", STAFF_LIST, "staff_give_g")
+            
+            df_g = get_inventory("ガラス道具")
+            item_list_g = df_g['name'].tolist() if not df_g.empty else []
+            item_g = auto_close_selector("品名", item_list_g, "item_g")
+            
+            qty_g = st.number_input("数量", min_value=1, value=1, step=1, key="qty_g")
+            comment_g = st.text_input("備考", key="comment_g")
+            
+            st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+            if st.button("この内容で記録する", type="primary", use_container_width=True, key="btn_g"):
+                process_action(staff_g, action_g, item_g, qty_g, comment_g)
+                st.success("記録が完了しました。")
+                time.sleep(0.5)
+                st.rerun()
 
 # ----------------- 在庫一覧ページ -----------------
 elif st.session_state.page == "在庫一覧":
@@ -423,28 +428,24 @@ elif st.session_state.page == "履歴":
             if not df_hist.empty:
                 df_cat = get_inventory(cat)
                 if not df_cat.empty:
-                    # 履歴データから該当カテゴリのものを抽出
                     df = df_hist[df_hist['item_name'].isin(df_cat['name'].tolist())].copy()
                     
                     if not df.empty:
-                        # 登録されている年を自動抽出
                         available_years = sorted(list(set([str(d).split("/")[0] for d in df['date'] if pd.notna(d)])), reverse=True)
                         year_options = ["すべて"] + [f"{y}年" for y in available_years]
                         
-                        st.markdown("<div class='card-box' style='padding: 15px; margin-bottom: 20px;'>", unsafe_allow_html=True)
-                        st.markdown("<h5 style='margin-bottom: 15px; color: #475569; font-size: 14px;'>高度な絞り込み検索</h5>", unsafe_allow_html=True)
+                        with st.container(border=True):
+                            st.markdown("<h5 style='margin-bottom: 15px; color: #475569; font-size: 14px;'>高度な絞り込み検索</h5>", unsafe_allow_html=True)
+                            
+                            col_s1, col_s2 = st.columns(2)
+                            with col_s1:
+                                year_s = auto_close_selector("年", year_options, f"hist_year_{cat}")
+                            with col_s2:
+                                staff_s = auto_close_selector("氏名", ["すべて", "会社購入"] + STAFF_LIST, f"hist_staff_{cat}")
+                            
+                            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+                            item_s = st.text_input("品名で検索 (一部入力でもOK)", key=f"hist_item_{cat}", placeholder="例: ズボン、ジャンパー")
                         
-                        col_s1, col_s2 = st.columns(2)
-                        with col_s1:
-                            year_s = auto_close_selector("年", year_options, f"hist_year_{cat}")
-                        with col_s2:
-                            staff_s = auto_close_selector("氏名", ["すべて", "会社購入"] + STAFF_LIST, f"hist_staff_{cat}")
-                        
-                        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-                        item_s = st.text_input("品名で検索 (一部入力でもOK)", key=f"hist_item_{cat}", placeholder="例: ズボン、ジャンパー")
-                        st.markdown("</div>", unsafe_allow_html=True)
-                        
-                        # 絞り込みロジックの適用
                         if year_s != "すべて":
                             target_year = year_s.replace("年", "")
                             df = df[df['date'].str.startswith(target_year, na=False)]
@@ -473,105 +474,100 @@ elif st.session_state.page == "管理":
         col_add, col_edit = st.columns(2)
         
         with col_add:
-            st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-            st.markdown("##### 新規アイテムの追加")
-            n_name = st.text_input("品名", key="new_item_name")
-            n_cat = st.selectbox("カテゴリ", ["制服", "ガラス道具"], key="new_item_cat")
-            n_stock = st.number_input("現在庫", value=0, step=1, key="new_item_stock")
-            n_thresh = st.number_input("アラート基準", value=2 if n_cat=="制服" else 4, step=1, key="new_item_thresh")
-            
-            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-            if st.button("追加する", type="primary", key="btn_add_item"):
-                if n_name:
-                    supabase.table("equip_items").insert({"name": n_name, "stock": n_stock, "category": n_cat, "threshold": n_thresh, "last_checked": ""}).execute()
-                    st.success("追加しました。")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error("品名を入力してください。")
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        with col_edit:
-            st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-            st.markdown("##### 既存アイテムの編集・削除")
-            edit_cat = st.radio("カテゴリ選択", ["制服", "ガラス道具"], key="edit_cat", horizontal=True)
-            df_edit = get_inventory(edit_cat)
-            if not df_edit.empty:
-                st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
-                edit_item = auto_close_selector("編集するアイテム", df_edit['name'].tolist(), "edit_item_select")
-                row = df_edit[df_edit['name'] == edit_item].iloc[0]
-                
-                e_stock = st.number_input("現在庫を修正", value=int(row['stock']), step=1, key="edit_item_stock")
-                e_thresh = st.number_input("アラート基準を修正", value=int(row['threshold']), step=1, key="edit_item_thresh")
+            with st.container(border=True):
+                st.markdown("##### 新規アイテムの追加")
+                n_name = st.text_input("品名", key="new_item_name")
+                n_cat = st.selectbox("カテゴリ", ["制服", "ガラス道具"], key="new_item_cat")
+                n_stock = st.number_input("現在庫", value=0, step=1, key="new_item_stock")
+                n_thresh = st.number_input("アラート基準", value=2 if n_cat=="制服" else 4, step=1, key="new_item_thresh")
                 
                 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("更新する", type="primary", key="btn_update_item", use_container_width=True):
-                        supabase.table("equip_items").update({"stock": e_stock, "threshold": e_thresh}).eq("name", edit_item).execute()
-                        st.success("更新しました。")
+                if st.button("追加する", type="primary", key="btn_add_item"):
+                    if n_name:
+                        supabase.table("equip_items").insert({"name": n_name, "stock": n_stock, "category": n_cat, "threshold": n_thresh, "last_checked": ""}).execute()
+                        st.success("追加しました。")
                         time.sleep(1)
                         st.rerun()
-                with col2:
-                    if st.button("削除", key="btn_delete_item", use_container_width=True):
-                        supabase.table("equip_items").delete().eq("name", edit_item).execute()
-                        st.error("削除しました。")
-                        time.sleep(1)
-                        st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+                    else:
+                        st.error("品名を入力してください。")
+
+        with col_edit:
+            with st.container(border=True):
+                st.markdown("##### 既存アイテムの編集・削除")
+                edit_cat = st.radio("カテゴリ選択", ["制服", "ガラス道具"], key="edit_cat", horizontal=True)
+                df_edit = get_inventory(edit_cat)
+                if not df_edit.empty:
+                    st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+                    edit_item = auto_close_selector("編集するアイテム", df_edit['name'].tolist(), "edit_item_select")
+                    row = df_edit[df_edit['name'] == edit_item].iloc[0]
+                    
+                    e_stock = st.number_input("現在庫を修正", value=int(row['stock']), step=1, key="edit_item_stock")
+                    e_thresh = st.number_input("アラート基準を修正", value=int(row['threshold']), step=1, key="edit_item_thresh")
+                    
+                    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("更新する", type="primary", key="btn_update_item", use_container_width=True):
+                            supabase.table("equip_items").update({"stock": e_stock, "threshold": e_thresh}).eq("name", edit_item).execute()
+                            st.success("更新しました。")
+                            time.sleep(1)
+                            st.rerun()
+                    with col2:
+                        if st.button("削除", key="btn_delete_item", use_container_width=True):
+                            supabase.table("equip_items").delete().eq("name", edit_item).execute()
+                            st.error("削除しました。")
+                            time.sleep(1)
+                            st.rerun()
 
     with tab_staff:
         col_s_add, col_s_edit = st.columns(2)
         with col_s_add:
-            st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-            st.markdown("##### スタッフの追加")
-            new_staff = st.text_input("追加するスタッフ名", key="new_staff_name")
-            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-            if st.button("スタッフを追加", type="primary", key="btn_add_staff"):
-                if new_staff:
-                    supabase.table("equip_items").insert({"name": new_staff, "category": "スタッフ", "stock": 0, "threshold": 0, "last_checked": ""}).execute()
-                    st.success("追加しました。")
-                    time.sleep(1)
-                    st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container(border=True):
+                st.markdown("##### スタッフの追加")
+                new_staff = st.text_input("追加するスタッフ名", key="new_staff_name")
+                st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                if st.button("スタッフを追加", type="primary", key="btn_add_staff"):
+                    if new_staff:
+                        supabase.table("equip_items").insert({"name": new_staff, "category": "スタッフ", "stock": 0, "threshold": 0, "last_checked": ""}).execute()
+                        st.success("追加しました。")
+                        time.sleep(1)
+                        st.rerun()
 
         with col_s_edit:
-            st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-            st.markdown("##### スタッフの削除")
-            del_staff = auto_close_selector("削除するスタッフ", STAFF_LIST, "del_staff_select")
-            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-            if st.button("削除する", key="btn_delete_staff", use_container_width=True):
-                supabase.table("equip_items").delete().eq("name", del_staff).eq("category", "スタッフ").execute()
-                st.error("削除しました。")
-                time.sleep(1)
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container(border=True):
+                st.markdown("##### スタッフの削除")
+                del_staff = auto_close_selector("削除するスタッフ", STAFF_LIST, "del_staff_select")
+                st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                if st.button("削除する", key="btn_delete_staff", use_container_width=True):
+                    supabase.table("equip_items").delete().eq("name", del_staff).eq("category", "スタッフ").execute()
+                    st.error("削除しました。")
+                    time.sleep(1)
+                    st.rerun()
                             
     with tab_fix:
-        st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-        st.info("誤って入力してしまった履歴を削除し、在庫数を元に戻します。")
-        res_hist = supabase.table("equip_history").select("*").order("id", desc=True).limit(50).execute()
-        df_hist = pd.DataFrame(res_hist.data)
-        
-        if not df_hist.empty:
-            options = []
-            for _, row in df_hist.iterrows():
-                opt = f"[ID:{row['id']}] {row['date']} | {row['staff_name']} | {row['item_name']} | {row['action']} {row['change_amount']}個"
-                options.append(opt)
-                
-            st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
-            selected_record = auto_close_selector("削除する履歴 (直近50件)", options, "del_hist_select", horizontal=False)
-                
-            record_id = int(selected_record.split("]")[0].replace("[ID:", ""))
-            target_row = df_hist[df_hist['id'] == record_id].iloc[0]
+        with st.container(border=True):
+            st.info("誤って入力してしまった履歴を削除し、在庫数を元に戻します。")
+            res_hist = supabase.table("equip_history").select("*").order("id", desc=True).limit(50).execute()
+            df_hist = pd.DataFrame(res_hist.data)
             
-            st.warning(f"以下の履歴を削除し、在庫数を再計算します。\n\n**{target_row['item_name']}** ({target_row['action']} {target_row['change_amount']}個)")
-            
-            confirm = st.checkbox("確認しました（この履歴を完全に削除します）", key="confirm_del_hist")
-            if confirm:
-                if st.button("履歴を削除して在庫を戻す", type="primary", key="btn_execute_del_hist", use_container_width=True):
-                    delete_history_record(record_id, target_row['item_name'], target_row['action'], target_row['change_amount'])
-                    st.toast("履歴を削除し、在庫を修正しました。")
-                    time.sleep(1.5)
-                    st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+            if not df_hist.empty:
+                options = []
+                for _, row in df_hist.iterrows():
+                    opt = f"[ID:{row['id']}] {row['date']} | {row['staff_name']} | {row['item_name']} | {row['action']} {row['change_amount']}個"
+                    options.append(opt)
+                    
+                st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+                selected_record = auto_close_selector("削除する履歴 (直近50件)", options, "del_hist_select", horizontal=False)
+                    
+                record_id = int(selected_record.split("]")[0].replace("[ID:", ""))
+                target_row = df_hist[df_hist['id'] == record_id].iloc[0]
+                
+                st.warning(f"以下の履歴を削除し、在庫数を再計算します。\n\n**{target_row['item_name']}** ({target_row['action']} {target_row['change_amount']}個)")
+                
+                confirm = st.checkbox("確認しました（この履歴を完全に削除します）", key="confirm_del_hist")
+                if confirm:
+                    if st.button("履歴を削除して在庫を戻す", type="primary", key="btn_execute_del_hist", use_container_width=True):
+                        delete_history_record(record_id, target_row['item_name'], target_row['action'], target_row['change_amount'])
+                        st.toast("履歴を削除し、在庫を修正しました。")
+                        time.sleep(1.5)
+                        st.rerun()
