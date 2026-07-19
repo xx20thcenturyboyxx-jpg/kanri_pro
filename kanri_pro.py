@@ -95,7 +95,7 @@ def auto_close_selector(label, options, key, horizontal=True):
     return st.session_state[val_key]
 
 # ==========================================
-# 3. 超・プロ仕様 SaaSデザイン CSS
+# 3. 超・プロ仕様 SaaSデザイン CSS (初代の美しいデザイン復刻版)
 # ==========================================
 st.set_page_config(page_title="在庫・貸出管理", layout="centered", initial_sidebar_state="expanded")
 
@@ -116,38 +116,70 @@ header[data-testid="stHeader"],
     display: none !important;
 }
 
-/* 🌟 ラジオボタンの「巨大なグレーの塊」をなくし、スッキリさせる */
+/* 🌟 初代SaaSデザイン：メインメニューの美しいカプセル型デザイン */
 div[data-testid="stRadio"] > div[role="radiogroup"] { 
-    display: flex; 
+    display: inline-flex; 
     flex-wrap: wrap; 
-    gap: 8px; 
-    background: transparent !important; 
-    padding: 0 !important; 
-    margin-bottom: 16px; 
+    gap: 4px; 
+    background: #e2e8f0; 
+    padding: 6px; 
+    border-radius: 999px;
+    margin-bottom: 24px; 
 }
-
-/* 🌟 個別の選択肢を綺麗な独立したボタンに統一 */
 div[data-testid="stRadio"] label { 
-    background-color: #ffffff; 
-    border: 1px solid #cbd5e1;
-    padding: 10px 16px !important; 
-    border-radius: 8px !important; 
+    background-color: transparent; 
+    padding: 8px 20px !important; 
+    border-radius: 999px; 
     cursor: pointer; 
     transition: all 0.2s ease; 
+    border: none; 
+}
+div[data-testid="stRadio"] label[data-checked="true"] { 
+    background-color: #ffffff; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08); 
+    color: #0f172a; 
+    font-weight: 700; 
+}
+
+/* 🌟 入力エリア等のラジオボタン (グレーの塊を消して独立した綺麗なボタンに) */
+div[data-testid="stTabs"] div[data-testid="stRadio"] > div[role="radiogroup"],
+div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stRadio"] > div[role="radiogroup"] {
+    display: flex;
+    background: transparent !important;
+    padding: 0 !important;
+    margin-bottom: 16px;
+    gap: 8px;
+}
+div[data-testid="stTabs"] div[data-testid="stRadio"] label,
+div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stRadio"] label {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    padding: 10px 16px !important;
+    border-radius: 8px !important;
     margin: 0 !important;
     flex: 1 1 auto;
     min-width: 80px;
     justify-content: center;
 }
-div[data-testid="stRadio"] label[data-checked="true"] { 
-    background-color: #eff6ff; 
+div[data-testid="stTabs"] div[data-testid="stRadio"] label[data-checked="true"],
+div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stRadio"] label[data-checked="true"] {
+    background-color: #eff6ff;
     border-color: #3b82f6;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
-    color: #1d4ed8; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    color: #1d4ed8;
 }
-div[data-testid="stRadio"] label p { font-size: 14px !important; font-weight: 600; }
 
-/* プライマリーボタン（送信・記録） */
+/* 🌟 初代SaaSデザイン：カード（枠）の洗練された影と角丸 */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background: #ffffff;
+    border-radius: 16px !important;
+    padding: 24px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.025) !important;
+    border: 1px solid #f1f5f9 !important;
+    margin-bottom: 20px !important;
+}
+
+/* 🌟 プライマリーボタン（送信・記録）の高級グラデーション */
 button[data-testid="baseButton-primary"] {
     background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
     color: #ffffff !important;
@@ -165,7 +197,7 @@ button[data-testid="baseButton-primary"]:hover {
     background: linear-gradient(180deg, #334155 0%, #1e293b 100%) !important;
 }
 
-/* セカンダリーボタン（アコーディオン） */
+/* 🌟 セカンダリーボタン（アコーディオン） */
 button[data-testid="baseButton-secondary"] { 
     background-color: #ffffff !important; 
     border: 1px solid #cbd5e1 !important; 
@@ -190,7 +222,7 @@ button[data-testid="baseButton-secondary"] p {
     width: 100% !important;
 }
 
-/* テーブル（表） */
+/* 🌟 テーブル（表） */
 table { 
     width: 100%; 
     border-collapse: separate; 
@@ -222,6 +254,7 @@ tr:hover td { background-color: #f8fafc; }
 
 h3, h4, h5 { color: #0f172a; font-weight: 700; letter-spacing: -0.025em; }
 
+/* 🌟 A4印刷用 */
 @media print { 
     @page { size: A4 portrait; margin: 6mm; } 
     .no-print, section[data-testid="stSidebar"], header[data-testid="stHeader"], div[data-testid="stRadio"], div[data-testid="stCheckbox"], button { display: none !important; } 
