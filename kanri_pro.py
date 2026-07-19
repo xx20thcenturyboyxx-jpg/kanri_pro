@@ -608,3 +608,4 @@ elif st.session_state.page == "管理":
                         st.toast("履歴を削除し、在庫を修正しました。")
                         time.sleep(1.5)
                         st.rerun()
+                    
