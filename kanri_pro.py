@@ -95,7 +95,7 @@ def auto_close_selector(label, options, key, horizontal=True):
     return st.session_state[val_key]
 
 # ==========================================
-# 3. 超・プロ仕様 SaaSデザイン CSS (初代の美しいデザイン復刻版)
+# 3. 超・プロ仕様 SaaSデザイン CSS
 # ==========================================
 st.set_page_config(page_title="在庫・貸出管理", layout="centered", initial_sidebar_state="expanded")
 
@@ -109,18 +109,21 @@ html, body, [class*="css"] {
 }
 .block-container { padding-top: 2rem !important; }
 
-/* 🌟 右上の「Fork」などの不要メニューを消去（スマホのサイドバー開閉ボタンは残す） */
-[data-testid="stToolbar"],
+/* 🌟 右上の不要メニュー（DeployやGitHub）だけを確実に消去！ */
+/* サイドバーボタン（st-emotion-cache-1ywlct...のようなもの）は絶対に消さない設定 */
 .stAppDeployButton,
 .stDeployButton,
+[data-testid="stToolbar"] [data-testid="stBaseButton-headerNoPadding"]:nth-child(1),
+[data-testid="stToolbar"] [data-testid="stBaseButton-headerNoPadding"]:nth-child(2),
 #MainMenu {
     display: none !important;
 }
+
 header[data-testid="stHeader"] {
     background-color: transparent !important;
 }
 
-/* 初代SaaSデザイン：メインメニューの美しいカプセル型デザイン */
+/* メインメニューのカプセル型デザイン */
 div[data-testid="stRadio"] > div[role="radiogroup"] { 
     display: inline-flex; 
     flex-wrap: wrap; 
@@ -173,7 +176,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stRadio"] label
     color: #1d4ed8;
 }
 
-/* 初代SaaSデザイン：カード（枠）の洗練された影と角丸 */
+/* カード（枠）の洗練された影と角丸 */
 div[data-testid="stVerticalBlockBorderWrapper"] {
     background: #ffffff;
     border-radius: 16px !important;
@@ -608,4 +611,3 @@ elif st.session_state.page == "管理":
                         st.toast("履歴を削除し、在庫を修正しました。")
                         time.sleep(1.5)
                         st.rerun()
-                    
