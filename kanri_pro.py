@@ -109,14 +109,18 @@ html, body, [class*="css"] {
 }
 .block-container { padding-top: 2rem !important; }
 
-/* 🌟 右上の「Fork」や「GitHubアイコン」などの不要メニューを完全に消去 */
-header[data-testid="stHeader"],
+/* 🌟 右上の「Fork」などの不要メニューを消去（スマホのサイドバー開閉ボタンは残す） */
+[data-testid="stToolbar"],
+.stAppDeployButton,
 .stDeployButton,
 #MainMenu {
     display: none !important;
 }
+header[data-testid="stHeader"] {
+    background-color: transparent !important;
+}
 
-/* 🌟 初代SaaSデザイン：メインメニューの美しいカプセル型デザイン */
+/* 初代SaaSデザイン：メインメニューの美しいカプセル型デザイン */
 div[data-testid="stRadio"] > div[role="radiogroup"] { 
     display: inline-flex; 
     flex-wrap: wrap; 
@@ -141,7 +145,7 @@ div[data-testid="stRadio"] label[data-checked="true"] {
     font-weight: 700; 
 }
 
-/* 🌟 入力エリア等のラジオボタン (グレーの塊を消して独立した綺麗なボタンに) */
+/* 入力エリア等のラジオボタン (独立した綺麗なボタン) */
 div[data-testid="stTabs"] div[data-testid="stRadio"] > div[role="radiogroup"],
 div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stRadio"] > div[role="radiogroup"] {
     display: flex;
@@ -169,7 +173,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stRadio"] label
     color: #1d4ed8;
 }
 
-/* 🌟 初代SaaSデザイン：カード（枠）の洗練された影と角丸 */
+/* 初代SaaSデザイン：カード（枠）の洗練された影と角丸 */
 div[data-testid="stVerticalBlockBorderWrapper"] {
     background: #ffffff;
     border-radius: 16px !important;
@@ -179,7 +183,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     margin-bottom: 20px !important;
 }
 
-/* 🌟 プライマリーボタン（送信・記録）の高級グラデーション */
+/* プライマリーボタン（送信・記録）の高級グラデーション */
 button[data-testid="baseButton-primary"] {
     background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
     color: #ffffff !important;
@@ -197,7 +201,7 @@ button[data-testid="baseButton-primary"]:hover {
     background: linear-gradient(180deg, #334155 0%, #1e293b 100%) !important;
 }
 
-/* 🌟 セカンダリーボタン（アコーディオン） */
+/* セカンダリーボタン（アコーディオン） */
 button[data-testid="baseButton-secondary"] { 
     background-color: #ffffff !important; 
     border: 1px solid #cbd5e1 !important; 
@@ -222,7 +226,7 @@ button[data-testid="baseButton-secondary"] p {
     width: 100% !important;
 }
 
-/* 🌟 テーブル（表） */
+/* テーブル（表） */
 table { 
     width: 100%; 
     border-collapse: separate; 
@@ -254,7 +258,7 @@ tr:hover td { background-color: #f8fafc; }
 
 h3, h4, h5 { color: #0f172a; font-weight: 700; letter-spacing: -0.025em; }
 
-/* 🌟 A4印刷用 */
+/* A4印刷用 */
 @media print { 
     @page { size: A4 portrait; margin: 6mm; } 
     .no-print, section[data-testid="stSidebar"], header[data-testid="stHeader"], div[data-testid="stRadio"], div[data-testid="stCheckbox"], button { display: none !important; } 
