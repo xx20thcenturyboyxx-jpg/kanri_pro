@@ -42,23 +42,23 @@ STAFF_LIST = get_staff_list()
 
 def process_action(staff_name, action, item_name, qty, comment):
     date_str = datetime.now().strftime("%Y/%m/%d")
-    stock_diff = qty if action == "補充" else -qty
+    stock_diff = int(qty) if action == "補充" else -int(qty)
     res = supabase.table("equip_items").select("stock").eq("name", item_name).execute()
     if res.data:
-        current_stock = res.data[0]['stock']
+        current_stock = int(res.data[0]['stock'])
         new_stock = current_stock + stock_diff
         supabase.table("equip_items").update({"stock": new_stock, "last_checked": date_str}).eq("name", item_name).execute()
     supabase.table("equip_history").insert({
         "date": date_str, "staff_name": staff_name, "item_name": item_name, 
-        "action": action, "change_amount": qty, "comment": comment
+        "action": action, "change_amount": int(qty), "comment": comment
     }).execute()
 
 def delete_history_record(record_id, item_name, action, qty):
-    stock_diff = qty if action == "支給" else -qty
-    supabase.table("equip_history").delete().eq("id", record_id).execute()
+    stock_diff = int(qty) if action == "支給" else -int(qty)
+    supabase.table("equip_history").delete().eq("id", int(record_id)).execute()
     res = supabase.table("equip_items").select("stock").eq("name", item_name).execute()
     if res.data:
-        current_stock = res.data[0]['stock']
+        current_stock = int(res.data[0]['stock'])
         new_stock = current_stock + stock_diff
         supabase.table("equip_items").update({"stock": new_stock}).eq("name", item_name).execute()
 
@@ -110,7 +110,6 @@ html, body, [class*="css"] {
 .block-container { padding-top: 2rem !important; }
 
 /* 🌟 右上の不要メニュー（DeployやGitHub）だけを確実に消去！ */
-/* サイドバーボタン（st-emotion-cache-1ywlct...のようなもの）は絶対に消さない設定 */
 .stAppDeployButton,
 .stDeployButton,
 [data-testid="stToolbar"] [data-testid="stBaseButton-headerNoPadding"]:nth-child(1),
@@ -524,7 +523,7 @@ elif st.session_state.page == "管理":
                 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
                 if st.button("追加する", type="primary", key="btn_add_item"):
                     if n_name:
-                        supabase.table("equip_items").insert({"name": n_name, "stock": n_stock, "category": n_cat, "threshold": n_thresh, "last_checked": ""}).execute()
+                        supabase.table("equip_items").insert({"name": n_name, "stock": int(n_stock), "category": n_cat, "threshold": int(n_thresh), "last_checked": ""}).execute()
                         st.success("追加しました。")
                         time.sleep(1)
                         st.rerun()
@@ -548,7 +547,7 @@ elif st.session_state.page == "管理":
                     col1, col2 = st.columns(2)
                     with col1:
                         if st.button("更新する", type="primary", key="btn_update_item", use_container_width=True):
-                            supabase.table("equip_items").update({"stock": e_stock, "threshold": e_thresh}).eq("name", edit_item).execute()
+                            supabase.table("equip_items").update({"stock": int(e_stock), "threshold": int(e_thresh)}).eq("name", edit_item).execute()
                             st.success("更新しました。")
                             time.sleep(1)
                             st.rerun()
