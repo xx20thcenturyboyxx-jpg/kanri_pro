@@ -94,10 +94,10 @@ def auto_close_selector(label, options, key, horizontal=True):
         
     return st.session_state[val_key]
 
-# 🌟 画面の入力内容を完全にリセットする関数
+# 画面の入力内容を完全にリセットする関数
 def clear_form_state():
     for key in list(st.session_state.keys()):
-        if key != "page":  # 現在開いているページ位置だけは記憶しておく
+        if key != "page":  
             del st.session_state[key]
 
 # ==========================================
@@ -115,7 +115,7 @@ html, body, [class*="css"] {
 }
 .block-container { padding-top: 2rem !important; }
 
-/* 🌟 右上の不要メニュー（DeployやGitHub）だけを確実に消去！ */
+/* 右上の不要メニュー（DeployやGitHub）だけを確実に消去！ */
 .stAppDeployButton,
 .stDeployButton,
 [data-testid="stToolbar"] [data-testid="stBaseButton-headerNoPadding"]:nth-child(1),
@@ -341,7 +341,6 @@ if st.session_state.page == "入力":
             comment_u = st.text_input("備考", key="comment_u")
             
             st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-            # 🌟 保存とリセット
             if st.button("この内容で記録する", type="primary", use_container_width=True, key="btn_u"):
                 process_action(staff_u, action_u, item_u, qty_u, comment_u)
                 st.success("✅ 記録が完了しました！画面をリセットします...")
@@ -367,7 +366,6 @@ if st.session_state.page == "入力":
             comment_g = st.text_input("備考", key="comment_g")
             
             st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-            # 🌟 保存とリセット
             if st.button("この内容で記録する", type="primary", use_container_width=True, key="btn_g"):
                 process_action(staff_g, action_g, item_g, qty_g, comment_g)
                 st.success("✅ 記録が完了しました！画面をリセットします...")
@@ -381,7 +379,8 @@ elif st.session_state.page == "在庫一覧":
     df = get_inventory(category)
     
     if not df.empty:
-        alerts = df[df['stock'] <= df['threshold']]
+        # 🌟 変更点: 在庫数がアラート基準『未満』( < )になったものをアラート対象とする
+        alerts = df[df['stock'] < df['threshold']]
         
         col1, col2 = st.columns(2)
         with col1: 
@@ -394,7 +393,8 @@ elif st.session_state.page == "在庫一覧":
         
         def highlight_alert(row):
             original_row = df[df['name'] == row['商品']].iloc[0]
-            if row['在庫数'] <= original_row['threshold']:
+            # 🌟 変更点: 色付けの判定も『未満』( < )に修正
+            if row['在庫数'] < original_row['threshold']:
                 return ['background-color: #fee2e2; color: #991b1b; font-weight: bold;'] * len(row)
             return [''] * len(row)
         
@@ -407,7 +407,8 @@ elif st.session_state.page == "在庫一覧":
                 html_table = "<table><thead><tr><th>商品</th><th>在庫数</th><th>最終確認</th></tr></thead><tbody>"
                 for _, row in display_df.iterrows():
                     original_row = df[df['name'] == row['商品']].iloc[0]
-                    is_alert_row = row['在庫数'] <= original_row['threshold']
+                    # 🌟 変更点: 印刷時の色付けの判定も『未満』( < )に修正
+                    is_alert_row = row['在庫数'] < original_row['threshold']
                     bg = "background-color: #fee2e2; font-weight: bold;" if is_alert_row else ""
                     last_check = row['最終確認'] if pd.notna(row['最終確認']) else ""
                     html_table += f"<tr style='{bg}'><td>{row['商品']}</td><td style='text-align:center;'>{row['在庫数']}</td><td>{last_check}</td></tr>"
@@ -431,7 +432,8 @@ elif st.session_state.page == "在庫一覧":
                     tables_html += "<table><thead><tr><th>商品</th><th>在庫</th><th>確認日</th></tr></thead><tbody>"
                     for _, row in group_df.iterrows():
                         original_row = df[df['name'] == row['商品']].iloc[0]
-                        is_alert_row = row['在庫数'] <= original_row['threshold']
+                        # 🌟 変更点: 印刷時の色付けの判定も『未満』( < )に修正
+                        is_alert_row = row['在庫数'] < original_row['threshold']
                         bg = "background-color: #fee2e2; font-weight: bold;" if is_alert_row else ""
                         last_check = row['最終確認'] if pd.notna(row['最終確認']) else ""
                         tables_html += f"<tr style='{bg}'><td>{row['商品']}</td><td style='text-align: center;'>{row['在庫数']}</td><td>{last_check}</td></tr>"
@@ -531,7 +533,6 @@ elif st.session_state.page == "管理":
                 n_thresh = st.number_input("アラート基準", value=2 if n_cat=="制服" else 4, step=1, key="new_item_thresh")
                 
                 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                # 🌟 保存とリセット
                 if st.button("追加する", type="primary", key="btn_add_item"):
                     if n_name:
                         supabase.table("equip_items").insert({"name": n_name, "stock": int(n_stock), "category": n_cat, "threshold": int(n_thresh), "last_checked": ""}).execute()
@@ -558,7 +559,6 @@ elif st.session_state.page == "管理":
                     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        # 🌟 保存とリセット
                         if st.button("更新する", type="primary", key="btn_update_item", use_container_width=True):
                             supabase.table("equip_items").update({"stock": int(e_stock), "threshold": int(e_thresh)}).eq("name", edit_item).execute()
                             st.success("✅ 更新しました！画面をリセットします...")
@@ -566,7 +566,6 @@ elif st.session_state.page == "管理":
                             clear_form_state()
                             st.rerun()
                     with col2:
-                        # 🌟 削除とリセット
                         if st.button("削除", key="btn_delete_item", use_container_width=True):
                             supabase.table("equip_items").delete().eq("name", edit_item).execute()
                             st.error("🚨 削除しました。画面をリセットします...")
@@ -581,7 +580,6 @@ elif st.session_state.page == "管理":
                 st.markdown("##### スタッフの追加")
                 new_staff = st.text_input("追加するスタッフ名", key="new_staff_name")
                 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                # 🌟 追加とリセット
                 if st.button("スタッフを追加", type="primary", key="btn_add_staff"):
                     if new_staff:
                         supabase.table("equip_items").insert({"name": new_staff, "category": "スタッフ", "stock": 0, "threshold": 0, "last_checked": ""}).execute()
@@ -595,7 +593,6 @@ elif st.session_state.page == "管理":
                 st.markdown("##### スタッフの削除")
                 del_staff = auto_close_selector("削除するスタッフ", STAFF_LIST, "del_staff_select")
                 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                # 🌟 削除とリセット
                 if st.button("削除する", key="btn_delete_staff", use_container_width=True):
                     supabase.table("equip_items").delete().eq("name", del_staff).eq("category", "スタッフ").execute()
                     st.error("🚨 削除しました。画面をリセットします...")
@@ -625,7 +622,6 @@ elif st.session_state.page == "管理":
                 
                 confirm = st.checkbox("確認しました（この履歴を完全に削除します）", key="confirm_del_hist")
                 if confirm:
-                    # 🌟 削除とリセット
                     if st.button("履歴を削除して在庫を戻す", type="primary", key="btn_execute_del_hist", use_container_width=True):
                         delete_history_record(record_id, target_row['item_name'], target_row['action'], target_row['change_amount'])
                         st.success("✅ 履歴を削除し、在庫を修正しました！画面をリセットします...")
