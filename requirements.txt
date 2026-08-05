@@ -1,3 +1,2 @@
 pandas
 supabase
-starlette==0.37.2
